@@ -1,0 +1,26 @@
+{
+  "name": "protoagente",
+  "version": "1.0.0",
+  "description": "Bot Telegram conectado a AI local com capacidades de memória e resiliência",
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "dev": "bun --watch src/index.ts",
+    "restart": "./scripts/restart.sh"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.1.76",
+    "dotenv": "^16.3.1",
+    "markdown-it": "^13.0.1",
+    "node-telegram-bot-api": "^0.66.0",
+    "sanitize-html": "^2.11.0",
+    "whisper-node": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/markdown-it": "^14.1.2",
+    "@types/node": "^20.10.0",
+    "@types/node-telegram-bot-api": "^0.64.0",
+    "@types/sanitize-html": "^2.16.0",
+    "bun-types": "latest"
+  }
+}

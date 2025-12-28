@@ -1,0 +1,31 @@
+# Environment
+.env
+.env.local
+# Ignore example env file? keep it tracked for docs
+# .env.example
+
+# Logs
+logs/*.log
+logs/*.json
+
+# Data
+data/*.json
+
+# Node modules
+node_modules/
+
+# Bun
+.bun/
+bun.lockb
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+data
