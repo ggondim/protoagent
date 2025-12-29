@@ -1,6 +1,6 @@
 {
   "name": "protoagente",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Bot Telegram conectado a AI local com capacidades de memória e resiliência",
   "type": "module",
   "scripts": {

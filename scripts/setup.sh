@@ -171,6 +171,27 @@ if ! command -v pm2 &> /dev/null; then
 fi
 echo "✅ PM2"
 
+# Install and configure pm2-logrotate
+echo ""
+echo "📦 Configurando pm2-logrotate..."
+
+# Check if pm2-logrotate is already installed
+if ! pm2 ls | grep -q "pm2-logrotate"; then
+    pm2 install pm2-logrotate
+fi
+
+# Configure log rotation settings
+pm2 set pm2-logrotate:max_size 10M
+pm2 set pm2-logrotate:retain 30
+pm2 set pm2-logrotate:compress true
+pm2 set pm2-logrotate:rotateInterval '0 0 * * *'
+
+echo "✅ pm2-logrotate configurado:"
+echo "   - Tamanho máximo: 10MB"
+echo "   - Arquivos retidos: 30"
+echo "   - Compressão: ativada"
+echo "   - Rotação: diária à meia-noite"
+
 echo ""
 echo "════════════════════════════════════════════"
 echo "✅ Setup concluído!"

@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2025-12-29
+
+### Added
+- **PM2 Log Rotation**: Configuração automática do `pm2-logrotate` no script de setup
+  - Tamanho máximo de arquivo: 10MB
+  - Retenção: 30 arquivos rotacionados
+  - Compressão de logs antigos ativada
+  - Rotação diária automática à meia-noite
+  - Previne crescimento descontrolado dos arquivos de log
+
+### Changed
+- **Setup Script**: Melhorado para instalar e configurar `pm2-logrotate` automaticamente
+
 ## [1.1.0] - 2025-12-29
 
 ### Added

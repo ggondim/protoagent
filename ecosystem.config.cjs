@@ -4,7 +4,7 @@
 
 module.exports = {
   apps: [{
-    name: 'protoagente',
+    name: 'Protoagent',
     script: 'bun',
     args: 'run src/index.ts',
     cwd: __dirname,
