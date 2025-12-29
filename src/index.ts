@@ -13,7 +13,10 @@ import type { AgentProvider } from './providers/types.js';
 import { WhisperTranscriber } from './whisper.js';
 import { MemoryManager } from './memory.js';
 import { ResilienceManager } from './resilience.js';
-import { ProtoagentBot } from './telegram-bot.js';
+import { AgentService } from './core/agent-service.js';
+import { TelegramChannel, type TelegramChannelConfig } from './channels/telegram.js';
+import { APIChannel, type APIChannelConfig } from './channels/api.js';
+import type { Channel } from './channels/types.js';
 import type { AppConfig } from './types.js';
 
 // Load environment variables
@@ -31,7 +34,9 @@ if (!existsSync(BOT_RUNTIME_DIR)) mkdirSync(BOT_RUNTIME_DIR, { recursive: true }
 /**
  * Load configuration from environment
  */
-function loadConfig(): AppConfig {
+function loadConfig(): AppConfig & {
+  api: APIChannelConfig;
+} {
   const telegramToken = process.env.TELEGRAM_BOT_TOKEN;
   const allowedUserIds = process.env.ALLOWED_USER_IDS;
 
@@ -43,27 +48,35 @@ function loadConfig(): AppConfig {
     throw new Error('ALLOWED_USER_IDS not set in environment');
   }
 
-  const userIds = allowedUserIds.split(',').map(id => parseInt(id.trim()));
+  const userIds = allowedUserIds.split(',').map((id) => parseInt(id.trim()));
 
-  // Allow multiple user IDs (no restriction)
-
-  const config: AppConfig = {
+  const config = {
     telegram: {
       botToken: telegramToken,
-      allowedUserIds: userIds
+      allowedUserIds: userIds,
+      enabled: process.env.TELEGRAM_ENABLED !== 'false',
     },
     ai: {
-      provider: (process.env.AI_PROVIDER as any) || 'claude',
-      // Use isolated runtime directory for the bot to avoid session conflicts
+      provider: ((process.env.AI_PROVIDER as string) || 'claude') as 'claude' | 'copilot',
       cwd: join(process.cwd(), '.bot-runtime'),
     },
     whisper: {
       model: process.env.WHISPER_MODEL || 'base',
-      language: process.env.WHISPER_LANGUAGE || 'auto'
+      language: process.env.WHISPER_LANGUAGE || 'auto',
+    },
+    api: {
+      enabled: process.env.API_ENABLED === 'true',
+      port: parseInt(process.env.API_PORT || '3000'),
+      apiKey: process.env.API_KEY || '',
     },
     maxCrashes: parseInt(process.env.MAX_CRASHES || '3'),
-    logLevel: (process.env.LOG_LEVEL as any) || 'info'
+    logLevel: (process.env.LOG_LEVEL as 'debug' | 'info' | 'warn' | 'error') || 'info',
   };
+
+  // Validate API config
+  if (config.api.enabled && !config.api.apiKey) {
+    console.warn('⚠️  API_KEY not set - API channel will require authentication');
+  }
 
   return config;
 }
@@ -75,7 +88,7 @@ async function main() {
   console.log('🚀 Starting Protoagente...\n');
 
   // Load configuration
-  let config: AppConfig;
+  let config: ReturnType<typeof loadConfig>;
   try {
     config = loadConfig();
   } catch (error) {
@@ -108,7 +121,6 @@ async function main() {
   if (resilience.shouldHalt()) {
     console.error('🛑 Circuit breaker activated - too many crashes');
 
-    // Notify users using simple method that doesn't require full bot
     try {
       await resilience.sendBootNotificationDirect(
         config.telegram.botToken,
@@ -118,7 +130,6 @@ async function main() {
       console.error('Failed to send circuit breaker notification:', error);
     }
 
-    // Disable PM2 service with proper exit
     const { exec } = require('child_process');
     exec('pm2 stop protoagente', (error: Error | null) => {
       if (error) {
@@ -145,75 +156,104 @@ async function main() {
     agent = createProvider(config.ai.provider, {
       cwd: config.ai.cwd || process.cwd(),
     });
-    
-    // Check availability
+
     const isAvailable = await agent.isAvailable();
     if (!isAvailable) {
-      throw new Error(`Provider ${config.ai.provider} não está disponível`);
+      throw new Error(`Provider ${config.ai.provider} not available`);
     }
-    
+
     console.log(`  ✅ AI agent (${agent.displayName})`);
   } catch (error) {
-    console.warn(`  ⚠️ Provider ${config.ai.provider} indisponível, buscando alternativa...`);
-    
-    // Try to find an available provider
+    console.warn(`  ⚠️ Provider ${config.ai.provider} unavailable, searching alternative...`);
+
     const available = await getFirstAvailableProvider({
       cwd: config.ai.cwd || process.cwd(),
     });
-    
+
     if (!available) {
-      console.error('  ❌ Nenhum provider de AI disponível!');
+      console.error('  ❌ No AI provider available!');
       process.exit(1);
     }
-    
+
     agent = available;
     console.log(`  ✅ AI agent (${agent.displayName}) [fallback]`);
   }
 
-  const bot = new ProtoagentBot(
-    config.telegram,
+  // Create AgentService
+  const agentService = new AgentService(
+    {
+      cwd: config.ai.cwd || process.cwd(),
+      defaultProvider: config.ai.provider,
+    },
     agent,
-    config.ai.cwd,
-    whisper,
-    memory,
-    resilience
+    {
+      whisper,
+      memory,
+      resilience,
+    }
   );
-  console.log('  ✅ Telegram bot\n');
+  console.log('  ✅ Agent service');
 
-  // Send boot notification
-  if (crashInfo) {
-    // Send crash notification for dirty boot
-    const message = resilience.formatCrashInfo(crashInfo);
-    await bot.sendBootNotification(message);
-    console.log('✅ Crash notification sent to users\n');
-  } else {
-    // Send clean boot notification
-    const bootMsg = `✅ <b>Protoagente iniciado</b>\n\n` +
-                   `<i>Boot limpo em ${new Date().toLocaleString()}</i>\n\n` +
-                   `Pronto para receber comandos!`;
-    await bot.sendBootNotification(bootMsg);
+  // Initialize channels
+  const channels: Channel[] = [];
+
+  // Telegram Channel
+  const telegramChannel = new TelegramChannel(
+    {
+      ...config.telegram,
+      enabled: config.telegram.enabled ?? true,
+    } as TelegramChannelConfig,
+    { agentService }
+  );
+  channels.push(telegramChannel);
+
+  // API Channel
+  const apiChannel = new APIChannel(config.api, { agentService });
+  channels.push(apiChannel);
+
+  // Start all channels
+  console.log('\n📡 Starting channels...');
+  for (const channel of channels) {
+    await channel.start();
   }
 
-  console.log('✅ Protoagente is running!\n');
+  // Send boot notification via Telegram
+  if (telegramChannel && config.telegram.enabled !== false) {
+    if (crashInfo) {
+      const message = resilience.formatCrashInfo(crashInfo);
+      await telegramChannel.sendNotification(message);
+      console.log('\n✅ Crash notification sent');
+    } else {
+      const bootMsg =
+        `✅ <b>Protoagente iniciado</b>\n\n` +
+        `<i>Boot limpo em ${new Date().toLocaleString()}</i>\n\n` +
+        `Pronto para receber comandos!`;
+      await telegramChannel.sendNotification(bootMsg);
+    }
+  }
+
+  console.log('\n✅ Protoagente is running!\n');
   console.log(`Provider: ${config.ai.provider}`);
+  console.log(`Telegram: ${config.telegram.enabled !== false ? 'enabled' : 'disabled'}`);
+  console.log(`API: ${config.api.enabled ? `enabled on port ${config.api.port}` : 'disabled'}`);
   console.log(`Allowed users: ${config.telegram.allowedUserIds.join(', ')}`);
   console.log(`Max crashes: ${config.maxCrashes}\n`);
   console.log('Press Ctrl+C to stop\n');
 
   // Handle graceful shutdown
-  process.on('SIGINT', () => {
+  const shutdown = async () => {
     console.log('\n\n🛑 Shutting down gracefully...');
-    bot.stop();
-    resilience.clearPendingTurn(); // Clear pending turn on graceful shutdown
-    process.exit(0);
-  });
 
-  process.on('SIGTERM', () => {
-    console.log('\n\n🛑 Shutting down gracefully...');
-    bot.stop();
-    resilience.clearPendingTurn(); // Clear pending turn on graceful shutdown
+    for (const channel of channels) {
+      await channel.stop();
+    }
+
+    resilience.clearPendingTurn();
     process.exit(0);
-  });
+  };
+
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
 }
 
 // Run the application

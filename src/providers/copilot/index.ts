@@ -51,7 +51,7 @@ export class CopilotAgentProvider implements AgentProvider {
   constructor(options: AgentProviderOptions) {
     this.options = options;
     this.params = {
-      model: 'claude-sonnet-4-5',
+      model: 'claude-sonnet-4.5',
       turnTimeout: 600000, // 10 minutes
     };
   }

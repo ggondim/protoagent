@@ -134,6 +134,7 @@ export interface AgentParams {
 export interface TelegramConfig {
   botToken: string;
   allowedUserIds: number[];
+  enabled?: boolean;
 }
 
 // ==================== Application Config ====================
