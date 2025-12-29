@@ -50,29 +50,29 @@ export class WhisperTranscriber {
     const debugWavPath = join(TEMP_DIR, 'last_voice.wav');
 
     try {
-      console.log(`[Whisper] Salvando áudio temporário: ${tempPath}`);
+      console.log(`[Whisper] Saving temporary audio: ${tempPath}`);
       // Write original audio
       writeFileSync(tempPath, audioBuffer);
 
-      console.log(`[Whisper] Convertendo para WAV: ${wavPath}`);
+      console.log(`[Whisper] Converting to WAV: ${wavPath}`);
       // Convert to 16kHz mono WAV using ffmpeg
       await this.convertToWav(tempPath, wavPath);
       
       // Copy for debugging
       if (existsSync(wavPath)) {
         writeFileSync(debugWavPath, readFileSync(wavPath));
-        console.log(`[Whisper] Debug copy salva em: ${debugWavPath}`);
+        console.log(`[Whisper] Debug copy saved at: ${debugWavPath}`);
       }
 
-      console.log(`[Whisper] Iniciando transcrição com modelo: ${this.config.model}`);
+      console.log(`[Whisper] Starting transcription with model: ${this.config.model}`);
       // Run whisper-node transcription
       const transcription = await this.runWhisperNode(wavPath);
 
-      console.log(`[Whisper] Transcrição concluída: "${transcription.substring(0, 100)}${transcription.length > 100 ? '...' : ''}"`);
+      console.log(`[Whisper] Transcription completed: "${transcription.substring(0, 100)}${transcription.length > 100 ? '...' : ''}"`);
       return transcription;
     } catch (error) {
-      console.error('[Whisper] Erro na transcrição:', error);
-      console.error(`[Whisper] Arquivo WAV de debug mantido em: ${debugWavPath}`);
+      console.error('[Whisper] Transcription error:', error);
+      console.error(`[Whisper] Debug WAV file kept at: ${debugWavPath}`);
       throw error;
     } finally {
       // Clean up temp files (but keep debug copy)
@@ -118,7 +118,7 @@ export class WhisperTranscriber {
           console.error(`[Whisper] FFmpeg stderr: ${stderr}`);
           reject(new Error(t('whisper:errors.ffmpeg_failed', { code })));
         } else {
-          console.log(`[Whisper] FFmpeg conversão OK`);
+          console.log(`[Whisper] FFmpeg conversion OK`);
           resolve();
         }
       });
@@ -163,7 +163,7 @@ export class WhisperTranscriber {
         '--no-timestamps'
       ];
       
-      console.log(`[Whisper] Executando: ${this.whisperBinary} ${args.join(' ')}`);
+      console.log(`[Whisper] Executing: ${this.whisperBinary} ${args.join(' ')}`);
       const child = spawn(this.whisperBinary, args);
       
       let stdout = '';
@@ -214,8 +214,8 @@ export class WhisperTranscriber {
           .map(line => line.trim());
         
         const result = transcriptLines.join(' ').trim();
-        
-        console.log(`[Whisper] Resultado: "${result}"`);
+
+        console.log(`[Whisper] Result: "${result}"`);
 
         if (!result || result.length === 0) {
           reject(new Error(t('whisper:errors.no_speech_detected')));

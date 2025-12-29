@@ -70,24 +70,24 @@ export class AgentService extends EventEmitter {
    */
   private setupAnalystAgent(): void {
     const analystCallback: AnalystAgentCallback = async (turnSummary: string) => {
-      const analysisPrompt = `Voce e um agente analista de diagnostico. Analise o seguinte turno de um agente AI e determine se ele esta travado.
+      const analysisPrompt = `You are a diagnostic analyst agent. Analyze the following turn of an AI agent and determine if it is stuck.
 
 ${turnSummary}
 
-Responda APENAS em JSON no formato:
+Respond ONLY in JSON format:
 {
   "isStuck": true/false,
-  "reason": "motivo se travado",
-  "recommendation": "recomendacao"
+  "reason": "reason if stuck",
+  "recommendation": "recommendation"
 }
 
-Considere travado se:
-- Repetindo a mesma acao mais de 3 vezes
-- Loop entre duas acoes
-- Sem progresso aparente apos timeout
-- Erros repetidos
+Consider stuck if:
+- Repeating the same action more than 3 times
+- Loop between two actions
+- No apparent progress after timeout
+- Repeated errors
 
-Seja conservador: so considere travado se houver evidencia clara.`;
+Be conservative: only consider stuck if there is clear evidence.`;
 
       try {
         let response = '';
@@ -104,19 +104,19 @@ Seja conservador: so considere travado se houver evidencia clara.`;
           const analysis = JSON.parse(jsonMatch[0]);
           return {
             isStuck: Boolean(analysis.isStuck),
-            reason: analysis.reason || 'Analise do agente',
-            recommendation: analysis.recommendation || 'Verificar turno',
+            reason: analysis.reason || 'Agent analysis',
+            recommendation: analysis.recommendation || 'Check turn',
             analysisSource: 'agent' as const,
           };
         }
       } catch (error) {
-        console.error('[AnalystAgent] Erro na analise:', error);
+        console.error('[AnalystAgent] Analysis error:', error);
       }
 
       return {
         isStuck: true,
-        reason: 'Timeout excedido (analise do agente falhou)',
-        recommendation: 'Abortar turno',
+        reason: 'Timeout exceeded (agent analysis failed)',
+        recommendation: 'Abort turn',
         analysisSource: 'heuristic' as const,
       };
     };
@@ -543,17 +543,17 @@ Seja conservador: so considere travado se houver evidencia clara.`;
       return customPrompt;
     }
 
-    return `Voce e o Protoagente, um assistente AI inteligente e prestativo.
+    return `You are Protoagente, an intelligent and helpful AI assistant.
 
-Voce tem capacidade de manter memoria de conversas anteriores e gerenciar tarefas.
+You have the ability to maintain memory of previous conversations and manage tasks.
 
-Sempre seja:
-- Claro e objetivo
-- Prestativo e amigavel
-- Honesto sobre suas limitacoes
-- Proativo em sugerir solucoes
+Always be:
+- Clear and objective
+- Helpful and friendly
+- Honest about your limitations
+- Proactive in suggesting solutions
 
-Quando receber uma tarefa complexa, quebre-a em subtarefas e as organize.`;
+When receiving a complex task, break it down into subtasks and organize them.`;
   }
 
   /**

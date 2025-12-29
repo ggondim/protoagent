@@ -357,7 +357,7 @@ export class TurnWatchdog {
         analysis = await this.analystAgent(turnSummary);
         analysis.analysisSource = 'agent';
       } catch (error) {
-        console.error('[Watchdog] Erro no agente analista, usando heurística:', error);
+        console.error('[Watchdog] Analyst agent error, using heuristics:', error);
         analysis = heuristicAnalysis;
       }
     } else {
@@ -377,20 +377,20 @@ export class TurnWatchdog {
    */
   private formatTurnForAnalysis(turn: TurnLog): string {
     const actions = turn.actions.slice(-20); // Last 20 actions
-    
-    let summary = `## Análise de Turno\n\n`;
-    summary += `**Duração:** ${Math.round(turn.duration / 1000)}s\n`;
+
+    let summary = `## Turn Analysis\n\n`;
+    summary += `**Duration:** ${Math.round(turn.duration / 1000)}s\n`;
     summary += `**Timeout:** ${this.paramsManager.getTurnTimeout() / 1000}s\n`;
-    summary += `**Prompt do usuário:** ${turn.userPrompt.substring(0, 200)}...\n\n`;
-    summary += `**Últimas ações (${actions.length}):**\n`;
-    
+    summary += `**User prompt:** ${turn.userPrompt.substring(0, 200)}...\n\n`;
+    summary += `**Last actions (${actions.length}):**\n`;
+
     actions.forEach((action, i) => {
       summary += `${i + 1}. [${action.type}] `;
       if (action.toolName) summary += `${action.toolName} `;
       if (action.content) summary += `- ${action.content.substring(0, 100)}`;
       summary += '\n';
     });
-    
+
     return summary;
   }
 
