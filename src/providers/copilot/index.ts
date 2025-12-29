@@ -19,16 +19,11 @@ import type {
 } from '../types.js';
 
 /**
- * Models available in the Copilot CLI
- * Ref: https://docs.github.com/en/copilot/concepts/agents/about-copilot-cli#model-usage
+ * Cache for available models (to avoid repeated CLI calls)
  */
-const COPILOT_MODELS = [
-  'claude-sonnet-4-5', // Default, 1x multiplier
-  'claude-opus-4',
-  'gpt-4o',
-  'o1',
-  'o3-mini',
-];
+let cachedModels: string[] | null = null;
+let cacheTimestamp: number = 0;
+const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
 /**
  * Provider for GitHub Copilot CLI
@@ -121,7 +116,107 @@ export class CopilotAgentProvider implements AgentProvider {
   }
 
   async getAvailableModels(): Promise<string[]> {
-    return COPILOT_MODELS;
+    // Check cache first
+    const now = Date.now();
+    if (cachedModels && (now - cacheTimestamp) < CACHE_TTL) {
+      return cachedModels;
+    }
+
+    // Query Copilot CLI for available models
+    try {
+      const result = await new Promise<string>((resolve, reject) => {
+        const proc = spawn('copilot', ['--help']);
+        let stdout = '';
+        let stderr = '';
+
+        proc.stdout?.on('data', (chunk: Buffer) => {
+          stdout += chunk.toString();
+        });
+
+        proc.stderr?.on('data', (chunk: Buffer) => {
+          stderr += chunk.toString();
+        });
+
+        proc.on('close', (code) => {
+          if (code === 0) {
+            resolve(stdout);
+          } else {
+            reject(new Error(`copilot --help failed: ${stderr}`));
+          }
+        });
+
+        proc.on('error', reject);
+      });
+
+      // Parse models from help output
+      // Format: "--model <model>                     Set the AI model to use (choices:"
+      // Models are listed as quoted strings: "claude-sonnet-4.5", "gpt-5-mini", etc.
+      const models: string[] = [];
+
+      // Extract from "choices:" section - models are quoted strings
+      // Example: (choices: "claude-sonnet-4.5", "claude-haiku-4.5", "gpt-5-mini", ...)
+      const choicesMatch = result.match(/--model[^(]*\(choices:\s*([^)]+)\)/s);
+      if (choicesMatch?.[1]) {
+        // Extract all quoted strings
+        const quotedModels = choicesMatch[1].match(/"([^"]+)"/g);
+        if (quotedModels) {
+          for (const quoted of quotedModels) {
+            const model = quoted.replace(/"/g, '');
+            if (!models.includes(model)) {
+              models.push(model);
+            }
+          }
+        }
+      }
+
+      // Also extract from example commands like "$ copilot --model gpt-5"
+      const exampleMatches = result.matchAll(/\$\s+copilot\s+--model\s+([a-z0-9.-]+)/gi);
+      for (const match of exampleMatches) {
+        if (match[1] && !models.includes(match[1])) {
+          models.push(match[1]);
+        }
+      }
+
+      // If we found models, cache them
+      if (models.length > 0) {
+        this.logToCopilot(`Detected ${models.length} models: ${models.join(', ')}`);
+        cachedModels = models;
+        cacheTimestamp = now;
+        return models;
+      }
+
+      this.logToCopilot('No models detected from parsing, using fallback');
+
+      // Fallback to common known models if parsing failed
+      const fallbackModels = [
+        'gpt-4o-mini',
+        'gpt-4o',
+        'gpt-5',
+        'claude-sonnet-4-5',
+        'claude-opus-4',
+        'o1',
+        'o3-mini',
+      ];
+
+      cachedModels = fallbackModels;
+      cacheTimestamp = now;
+      return fallbackModels;
+    } catch (error) {
+      console.warn('[Copilot] Failed to detect models dynamically:', error);
+
+      // Return fallback models on error
+      const fallbackModels = [
+        'gpt-4o-mini',
+        'gpt-4o',
+        'gpt-5',
+        'claude-sonnet-4-5',
+        'claude-opus-4',
+        'o1',
+        'o3-mini',
+      ];
+
+      return fallbackModels;
+    }
   }
 
   getParams(): AgentRuntimeParams {
@@ -193,11 +288,17 @@ export class CopilotAgentProvider implements AgentProvider {
       // Update last activity
       this.lastActivityTime = Date.now();
       
-      this.logToCopilot(`query start - mode: ${this.contextMode}, sessionId: ${this.sessionId}, prompt: ${prompt.substring(0, 100)}...`);
-      
-      // Build args: copilot -p "prompt" [--resume sessionId | --continue]
+      this.logToCopilot(`query start - mode: ${this.contextMode}, sessionId: ${this.sessionId}, model: ${this.params.model}, prompt: ${prompt.substring(0, 100)}...`);
+
+      // Build args: copilot -p "prompt" --model <model> [--resume sessionId | --continue]
       const args = ['-p', prompt];
-      
+
+      // Add model if specified
+      if (this.params.model) {
+        args.push('--model', String(this.params.model));
+        this.logToCopilot(`Using model: ${this.params.model}`);
+      }
+
       // Add session resumption based on context mode
       if (this.contextMode === 'continue') {
         args.push('--continue');

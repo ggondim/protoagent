@@ -173,17 +173,17 @@ export class ClaudeAgentProvider implements AgentProvider {
     };
 
     try {
-      this.currentQuery = query({ 
-        prompt, 
+      this.currentQuery = query({
+        prompt,
         options: sdkOptions,
       });
 
       for await (const sdkMessage of this.currentQuery) {
-          // Capture session_id from messages to allow resume
+        // Capture session_id from messages to allow resume
         if ('session_id' in sdkMessage && sdkMessage.session_id) {
           this.lastSessionId = sdkMessage.session_id;
         }
-        
+
         const agentMessage = this.mapSDKMessage(sdkMessage);
         if (agentMessage) {
           // Optional callback for streaming
@@ -196,7 +196,7 @@ export class ClaudeAgentProvider implements AgentProvider {
       if (error instanceof Error && error.name === 'AbortError') {
         return;
       }
-      
+
       const errorMessage: AgentMessage = {
         role: 'assistant',
         content: [{

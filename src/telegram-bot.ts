@@ -249,29 +249,16 @@ Seja conservador: só considere travado se houver evidência clara.`;
   /**
    * Ensure user has a session ID in the provider
    */
-  private ensureUserSession(userId: number): void {
+  private ensureUserSession(): void {
     // Check if provider supports session management
     if (!this.agent.setSessionId || !this.agent.getSessionId || !this.agent.setContextMode) {
       return; // Provider doesn't support sessions (skip)
     }
-    
-    // For Copilot: use 'continue' mode (resume most recent session automatically)
-    // This avoids the "Session file is corrupted or incompatible" error
-    // because we don't need to provide a sessionId - Copilot manages it
-    if (this.agent.name === 'copilot') {
-      this.agent.setContextMode('continue');
-      return;
-    }
-    
-    // For Claude: use custom sessionId per user
-    const currentSession = this.agent.getSessionId();
-    if (currentSession) {
-      return; // Already has a session
-    }
-    
-    const sessionId = `telegram-user-${userId}`;
-    this.agent.setSessionId(sessionId);
-    this.agent.setContextMode('resume');
+
+    // Both Claude and Copilot: use 'continue' mode
+    // This automatically resumes the most recent session
+    // The SDK manages sessionIds internally (we don't need to provide custom IDs)
+    this.agent.setContextMode('continue');
   }
 
   /**
@@ -1152,9 +1139,8 @@ Pode me enviar mensagens de texto ou áudio!
    * Process user message (common logic for text and voice)
    */
   private async processUserMessage(chatId: number, message: string): Promise<void> {
-    // Initialize session ID for this user if not set
-    const userId = chatId; // Using chatId as userId for simplicity
-    this.ensureUserSession(userId);
+    // Initialize session context for the provider
+    this.ensureUserSession();
     
     // Save pending turn for crash recovery
     this.resilience.savePendingTurn(message);

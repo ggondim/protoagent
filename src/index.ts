@@ -22,8 +22,11 @@ loadEnv();
 // Ensure required directories exist
 const DATA_DIR = join(process.cwd(), 'data');
 const LOGS_DIR = join(process.cwd(), 'logs');
+const BOT_RUNTIME_DIR = join(process.cwd(), '.bot-runtime');
+
 if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
 if (!existsSync(LOGS_DIR)) mkdirSync(LOGS_DIR, { recursive: true });
+if (!existsSync(BOT_RUNTIME_DIR)) mkdirSync(BOT_RUNTIME_DIR, { recursive: true });
 
 /**
  * Load configuration from environment
@@ -51,7 +54,8 @@ function loadConfig(): AppConfig {
     },
     ai: {
       provider: (process.env.AI_PROVIDER as any) || 'claude',
-      cwd: process.cwd(),
+      // Use isolated runtime directory for the bot to avoid session conflicts
+      cwd: join(process.cwd(), '.bot-runtime'),
     },
     whisper: {
       model: process.env.WHISPER_MODEL || 'base',
