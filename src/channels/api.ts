@@ -6,6 +6,7 @@
 import { Elysia, t } from 'elysia';
 import type { AgentService } from '../core/agent-service.js';
 import type { Channel, ChannelOptions, ResponseChunk } from './types.js';
+import i18n, { t as translate } from '../i18n/index.js';
 
 export interface APIChannelConfig {
   enabled: boolean;
@@ -27,6 +28,25 @@ export class APIChannel implements Channel {
     this.agentService = options.agentService;
   }
 
+  private getRequestLanguage(request: Request): string {
+    // 1. Check Accept-Language header
+    const acceptLang = request.headers.get('Accept-Language');
+    if (acceptLang) {
+      const lang = acceptLang.split(',')[0]?.trim() || '';
+      if (lang.startsWith('pt')) return 'pt-BR';
+      if (lang.startsWith('en')) return 'en';
+    }
+
+    // 2. Check X-Language custom header
+    const customLang = request.headers.get('X-Language');
+    if (customLang && ['pt-BR', 'en'].includes(customLang)) {
+      return customLang;
+    }
+
+    // 3. Environment default
+    return process.env.DEFAULT_LANGUAGE || 'pt-BR';
+  }
+
   async start(): Promise<void> {
     if (!this.config.enabled) {
       console.log('  ⏭️  API channel disabled');
@@ -34,11 +54,15 @@ export class APIChannel implements Channel {
     }
 
     this.app = new Elysia()
-      .onBeforeHandle(({ request, set }) => {
+      .onBeforeHandle(async ({ request, set }) => {
         // Skip auth for health check
         if (new URL(request.url).pathname === '/health') {
           return;
         }
+
+        // Set language for this request
+        const lang = this.getRequestLanguage(request);
+        await i18n.changeLanguage(lang);
 
         const authHeader = request.headers.get('Authorization');
         const apiKeyHeader = request.headers.get('X-API-Key');
@@ -47,7 +71,7 @@ export class APIChannel implements Channel {
 
         if (!providedKey || providedKey !== this.config.apiKey) {
           set.status = 401;
-          return { error: 'Unauthorized', message: 'Invalid or missing API key' };
+          return { error: translate('api:errors.unauthorized.title'), message: translate('api:errors.unauthorized.message') };
         }
       })
       .get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }))
@@ -59,7 +83,7 @@ export class APIChannel implements Channel {
 
             if (!text && !audio) {
               set.status = 400;
-              return { error: 'Bad Request', message: 'Either text or audio is required' };
+              return { error: translate('api:errors.bad_request.title'), message: translate('api:errors.bad_request.message') };
             }
 
             const options = {
@@ -105,7 +129,7 @@ export class APIChannel implements Channel {
           } catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error);
             set.status = 500;
-            return { error: 'Internal Server Error', message: errorMsg };
+            return { error: translate('api:errors.internal_server_error.title'), message: translate('api:errors.internal_server_error.message', { message: errorMsg }) };
           }
         },
         {

@@ -1,0 +1,18 @@
+{
+  "crash": {
+    "title": "⚠️ <b>REINÍCIO APÓS CRASH</b>",
+    "datetime": "<b>Data/Hora:</b> {{date}}",
+    "count": "<b>Crash #{{crashCount}}</b> de {{maxCrashes}} máximo",
+    "pending_prompt": "<b>Prompt Pendente:</b>\n<code>{{prompt}}{{truncated}}</code>",
+    "truncated_indicator": "...",
+    "recent_errors": "<b>Últimos Erros:</b>\n<pre>{{errors}}</pre>"
+  },
+  "circuit_breaker": {
+    "title": "🛑 <b>CIRCUIT BREAKER ATIVADO</b>",
+    "message": "O sistema detectou <b>{{count}}</b> crashes consecutivos e foi desabilitado por segurança.",
+    "crashes_header": "<b>Últimos crashes:</b>",
+    "crash_entry_header": "<b>{{index}}. {{date}}</b>",
+    "crash_entry_prompt": "Prompt: <code>{{prompt}}...</code>",
+    "footer": "<i>Por favor, verifique os logs e reinicie manualmente após corrigir o problema.</i>"
+  }
+}

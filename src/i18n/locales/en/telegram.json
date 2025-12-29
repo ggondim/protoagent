@@ -1,0 +1,103 @@
+{
+  "commands": {
+    "start": {
+      "title": "🤖 <b>Protoagente</b>",
+      "welcome": "Welcome! I'm an intelligent AI assistant.",
+      "provider": "<b>Provider:</b> {{provider}}",
+      "model": "<b>Model:</b> <code>{{model}}</code>",
+      "commands_header": "<b>Commands:</b>",
+      "cmd_start": "/start - This message",
+      "cmd_status": "/status - Current status",
+      "cmd_clear": "/clear - Clear history",
+      "cmd_model": "/model - View/change model",
+      "cmd_provider": "/provider - View/change provider",
+      "cmd_params": "/params - View/change parameters",
+      "cmd_saveparams": "/saveparams - Save as default",
+      "cmd_logs": "/logs [n] - View recent turns",
+      "cmd_reboot": "/reboot - Restart",
+      "cmd_language": "/language [pt-BR|en] - Change language",
+      "footer": "Send text or voice messages!"
+    },
+    "status": {
+      "title": "📊 <b>Protoagente Status</b>",
+      "tasks_current": "<b>Current Tasks:</b>",
+      "tasks_none": "<b>Tasks:</b> No active tasks",
+      "recent_sessions": "<b>Recent Interactions:</b> {{count}}",
+      "last_update": "<b>Last update:</b> {{date}}"
+    },
+    "clear": {
+      "success": "🗑️ History cleared!{{sessionInfo}}\n\n💡 New conversation started.",
+      "session_info": " (session: {{sessionId}}...)"
+    },
+    "context": {
+      "title": "🧠 <b>Session Context</b>",
+      "provider": "<b>Provider:</b> {{provider}}",
+      "mode": "<b>Mode:</b> {{mode}}{{sessionInfo}}",
+      "session_id": "\n📋 <b>Session ID:</b> <code>{{sessionId}}</code>",
+      "commands_header": "<b>Commands:</b>",
+      "cmd_continue": "• <code>/context continue</code> - Continue last session",
+      "cmd_none": "• <code>/context none</code> - No memory",
+      "cmd_clear": "• <code>/clear</code> - Clear and start new session",
+      "mode_changed": "{{emoji}} <b>Context mode:</b> {{mode}}"
+    },
+    "params": {
+      "title": "⚙️ <b>Current Parameters</b>",
+      "param_line": "<b>{{key}}:</b> <code>{{value}}</code>",
+      "hint": "<i>Use /params key=value to change</i>",
+      "updated": "✅ Parameter <b>{{key}}</b> = <code>{{value}}</code>"
+    },
+    "model": {
+      "title": "🤖 <b>Available Models</b>",
+      "current_indicator": " (current)",
+      "hint": "<i>Use /model name to switch</i>",
+      "changed": "✅ Model changed to <code>{{model}}</code>"
+    },
+    "provider": {
+      "title": "🔌 <b>Available Providers</b>",
+      "current_indicator": " (current)",
+      "hint": "<i>Use /provider name to switch</i>",
+      "changed": "✅ Provider changed from <b>{{oldProvider}}</b> to <b>{{newProvider}}</b>"
+    },
+    "saveparams": {
+      "success": "💾 Parameters saved as default!"
+    },
+    "todo": {
+      "title": "📋 <b>Current Tasks</b>",
+      "empty": "📋 <b>Tasks</b>\n\nNo tasks. Use /todo add <task>",
+      "hint": "<i>/todo mark n status | /todo delete n</i>",
+      "added": "✅ Task added: \"{{task}}\"",
+      "status_updated": "✅ Status updated: {{status}}",
+      "deleted": "✅ Task removed: \"{{task}}\""
+    },
+    "logs": {
+      "empty": "📋 No turns logged.",
+      "title": "📋 <b>Last {{count}} Turns</b>",
+      "entry_header": "<b>{{index}}. {{status}} {{date}}</b>",
+      "entry_prompt": "Prompt: <code>{{prompt}}...</code>",
+      "entry_stats": "Duration: {{duration}}s | Actions: {{actions}}"
+    },
+    "reboot": {
+      "message": "🔄 Rebooting..."
+    },
+    "language": {
+      "current": "🌐 <b>Current language:</b> {{current}}\n\n<i>Use /language pt-BR or /language en to switch</i>",
+      "changed": "✅ Language changed to <b>{{lang}}</b>",
+      "invalid": "❌ Invalid language. Use: pt-BR or en"
+    }
+  },
+  "errors": {
+    "access_denied": "⛔ Access denied.",
+    "wait_previous": "⏳ Please wait for the previous response...",
+    "generic": "❌ <b>Error:</b> {{message}}",
+    "generic_simple": "❌ {{message}}",
+    "invalid_format": "❌ Invalid format. Use: {{format}}",
+    "invalid_mode": "❌ Invalid mode. Use: {{modes}}",
+    "invalid_todo_add": "❌ Use: /todo add <task>",
+    "invalid_todo_mark": "❌ Use: /todo mark n pending|in_progress|completed",
+    "invalid_todo_delete": "❌ Use: /todo delete n"
+  },
+  "processing": {
+    "transcribing": "🎤 Transcribing audio...",
+    "transcription_result": "📝 <i>Transcription:</i> \"{{transcription}}\""
+  }
+}

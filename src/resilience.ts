@@ -6,6 +6,7 @@
 import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import type { CrashLog, CrashRecord } from './types';
+import i18n, { t } from './i18n/index.js';
 
 const DATA_DIR = join(process.cwd(), 'data');
 const LOGS_DIR = join(process.cwd(), 'logs');
@@ -227,17 +228,26 @@ export class ResilienceManager {
   /**
    * Format crash info for display
    */
-  formatCrashInfo(crashInfo: { pendingPrompt: string; errorLog: string; crashCount: number }): string {
+  async formatCrashInfo(crashInfo: { pendingPrompt: string; errorLog: string; crashCount: number }, lang: string = 'pt-BR'): Promise<string> {
     const { pendingPrompt, errorLog, crashCount } = crashInfo;
 
-    let message = '⚠️ <b>REINÍCIO APÓS CRASH</b>\n\n';
-    message += `<b>Data/Hora:</b> ${new Date().toLocaleString()}\n`;
-    message += `<b>Crash #${crashCount}</b> de ${this.maxCrashes} máximo\n\n`;
-    message += `<b>Prompt Pendente:</b>\n<code>${this.escapeHtml(pendingPrompt.substring(0, 200))}${pendingPrompt.length > 200 ? '...' : ''}</code>\n\n`;
+    await i18n.changeLanguage(lang);
+
+    let message = t('resilience:crash.title') + '\n\n';
+    message += t('resilience:crash.datetime', { date: new Date().toLocaleString() }) + '\n';
+    message += t('resilience:crash.count', { crashCount, maxCrashes: this.maxCrashes }) + '\n\n';
+
+    const truncated = pendingPrompt.length > 200 ? t('resilience:crash.truncated_indicator') : '';
+    message += t('resilience:crash.pending_prompt', {
+      prompt: this.escapeHtml(pendingPrompt.substring(0, 200)),
+      truncated
+    }) + '\n\n';
 
     if (errorLog) {
       const errorLines = errorLog.split('\n').slice(-10); // Last 10 lines
-      message += `<b>Últimos Erros:</b>\n<pre>${this.escapeHtml(errorLines.join('\n').substring(0, 500))}</pre>\n`;
+      message += t('resilience:crash.recent_errors', {
+        errors: this.escapeHtml(errorLines.join('\n').substring(0, 500))
+      }) + '\n';
     }
 
     return message;
@@ -246,19 +256,26 @@ export class ResilienceManager {
   /**
    * Format circuit breaker message
    */
-  formatCircuitBreakerMessage(): string {
+  async formatCircuitBreakerMessage(lang: string = 'pt-BR'): Promise<string> {
     const crashes = this.getCrashes();
 
-    let message = '🛑 <b>CIRCUIT BREAKER ATIVADO</b>\n\n';
-    message += `O sistema detectou <b>${crashes.length}</b> crashes consecutivos e foi desabilitado por segurança.\n\n`;
-    message += `<b>Últimos crashes:</b>\n`;
+    await i18n.changeLanguage(lang);
+
+    let message = t('resilience:circuit_breaker.title') + '\n\n';
+    message += t('resilience:circuit_breaker.message', { count: crashes.length }) + '\n\n';
+    message += t('resilience:circuit_breaker.crashes_header') + '\n';
 
     crashes.slice(-3).forEach((crash, i) => {
-      message += `\n<b>${i + 1}. ${new Date(crash.timestamp).toLocaleString()}</b>\n`;
-      message += `Prompt: <code>${this.escapeHtml(crash.pendingPrompt.substring(0, 100))}...</code>\n`;
+      message += '\n' + t('resilience:circuit_breaker.crash_entry_header', {
+        index: i + 1,
+        date: new Date(crash.timestamp).toLocaleString()
+      }) + '\n';
+      message += t('resilience:circuit_breaker.crash_entry_prompt', {
+        prompt: this.escapeHtml(crash.pendingPrompt.substring(0, 100))
+      }) + '\n';
     });
 
-    message += '\n<i>Por favor, verifique os logs e reinicie manualmente após corrigir o problema.</i>';
+    message += '\n' + t('resilience:circuit_breaker.footer');
 
     return message;
   }
@@ -267,9 +284,9 @@ export class ResilienceManager {
    * Send boot notification directly without requiring full bot initialization
    * Used when circuit breaker is activated during boot
    */
-  async sendBootNotificationDirect(botToken: string, userIds: number[]): Promise<void> {
-    const message = this.formatCircuitBreakerMessage();
-    
+  async sendBootNotificationDirect(botToken: string, userIds: number[], lang: string = 'pt-BR'): Promise<void> {
+    const message = await this.formatCircuitBreakerMessage(lang);
+
     for (const userId of userIds) {
       try {
         await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {

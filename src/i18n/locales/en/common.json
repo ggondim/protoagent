@@ -1,0 +1,18 @@
+{
+  "status": {
+    "completed": "✅",
+    "in_progress": "🔄",
+    "pending": "⏳",
+    "error": "❌",
+    "warning": "⚠️",
+    "success": "✅",
+    "info": "ℹ️"
+  },
+  "labels": {
+    "yes": "Yes",
+    "no": "No",
+    "ok": "OK",
+    "cancel": "Cancel",
+    "confirm": "Confirm"
+  }
+}

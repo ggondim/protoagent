@@ -6,6 +6,7 @@
 import { writeFileSync, unlinkSync, existsSync, mkdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { spawn } from 'child_process';
+import { t } from './i18n/index.js';
 
 const TEMP_DIR = join(process.cwd(), 'data', 'temp');
 
@@ -109,13 +110,13 @@ export class WhisperTranscriber {
       });
 
       child.on('error', (error: Error) => {
-        reject(new Error(`FFmpeg não encontrado. Instale com: brew install ffmpeg\n${error.message}`));
+        reject(new Error(t('whisper:errors.ffmpeg_not_found') + `\n${error.message}`));
       });
 
       child.on('close', (code: number | null) => {
         if (code !== 0) {
           console.error(`[Whisper] FFmpeg stderr: ${stderr}`);
-          reject(new Error(`FFmpeg falhou com código ${code}`));
+          reject(new Error(t('whisper:errors.ffmpeg_failed', { code })));
         } else {
           console.log(`[Whisper] FFmpeg conversão OK`);
           resolve();
@@ -130,9 +131,7 @@ export class WhisperTranscriber {
   private async runWhisperNode(audioPath: string): Promise<string> {
     // Validate binary exists
     if (!existsSync(this.whisperBinary)) {
-      return Promise.reject(new Error(
-        'Whisper binary not found. Run: bash scripts/setup.sh to compile whisper.cpp'
-      ));
+      return Promise.reject(new Error(t('whisper:errors.binary_not_found')));
     }
 
     // Construct model path
@@ -148,14 +147,12 @@ export class WhisperTranscriber {
 
     // Validate model exists
     if (!existsSync(modelPath)) {
-      return Promise.reject(new Error(
-        `Whisper model not found: ${modelPath}\nRun: bash scripts/setup.sh to download models`
-      ));
+      return Promise.reject(new Error(t('whisper:errors.model_not_found', { path: modelPath })));
     }
 
     // Validate input audio file
     if (!existsSync(audioPath)) {
-      return Promise.reject(new Error(`Audio file not found: ${audioPath}`));
+      return Promise.reject(new Error(t('whisper:errors.audio_not_found', { path: audioPath })));
     }
     
     return new Promise((resolve, reject) => {
@@ -219,9 +216,9 @@ export class WhisperTranscriber {
         const result = transcriptLines.join(' ').trim();
         
         console.log(`[Whisper] Resultado: "${result}"`);
-        
+
         if (!result || result.length === 0) {
-          reject(new Error('Nenhuma fala detectada no áudio. Verifique se o áudio contém voz clara ou tente um áudio mais longo.'));
+          reject(new Error(t('whisper:errors.no_speech_detected')));
           return;
         }
         

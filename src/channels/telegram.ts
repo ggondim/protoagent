@@ -12,6 +12,7 @@ import MarkdownIt from 'markdown-it';
 import sanitizeHtml from 'sanitize-html';
 import { appendFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
+import i18n, { t } from '../i18n/index.js';
 
 type MdToken = {
   type: string;
@@ -155,6 +156,9 @@ export class TelegramChannel implements Channel {
     this.bot.onText(/\/logs(?:\s+(\d+))?/, async (msg, match) =>
       await this.handleLogsCommand(msg, match?.[1])
     );
+    this.bot.onText(/\/language(?:\s+(.+))?/, async (msg, match) =>
+      await this.handleLanguageCommand(msg, match?.[1]?.trim())
+    );
   }
 
   private isAllowedUser(userId: number): boolean {
@@ -192,6 +196,32 @@ export class TelegramChannel implements Channel {
     }
   }
 
+  // ==================== Language Detection ====================
+
+  private getUserLanguage(userId: number, msg?: Message): string {
+    // 1. Check stored preference
+    const stored = this.agentService.getMemory().state.getUserLanguage(String(userId));
+    if (stored) return stored;
+
+    // 2. Check Telegram language_code
+    if (msg?.from?.language_code) {
+      const code = msg.from.language_code;
+      const normalized = code.startsWith('pt') ? 'pt-BR' :
+                        code.startsWith('en') ? 'en' : 'pt-BR';
+      // Auto-save detected language
+      this.agentService.getMemory().state.setUserLanguage(String(userId), normalized);
+      return normalized;
+    }
+
+    // 3. Environment default
+    return process.env.DEFAULT_LANGUAGE || 'pt-BR';
+  }
+
+  private async setLanguage(userId: number, msg?: Message): Promise<void> {
+    const lang = this.getUserLanguage(userId, msg);
+    await i18n.changeLanguage(lang);
+  }
+
   // ==================== Command Handlers ====================
 
   private async handleStartCommand(msg: Message): Promise<void> {
@@ -199,31 +229,36 @@ export class TelegramChannel implements Channel {
     const userId = msg.from?.id;
 
     if (!userId || !this.isAllowedUser(userId)) {
-      await this.sendMessage(chatId, '⛔ Acesso negado.');
+      // Use default language for unauthorized users
+      await i18n.changeLanguage(process.env.DEFAULT_LANGUAGE || 'pt-BR');
+      await this.sendMessage(chatId, t('telegram:errors.access_denied'));
       return;
     }
 
+    await this.setLanguage(userId, msg);
+
     const currentModel = this.agentService.getModel() || 'default';
     const welcomeMsg = `
-🤖 <b>Protoagente</b>
+${t('telegram:commands.start.title')}
 
-Bem-vindo! Sou um assistente AI inteligente.
+${t('telegram:commands.start.welcome')}
 
-<b>Provider:</b> ${this.agentService.getProviderDisplayName()}
-<b>Modelo:</b> <code>${currentModel}</code>
+${t('telegram:commands.start.provider', { provider: this.agentService.getProviderDisplayName() })}
+${t('telegram:commands.start.model', { model: currentModel })}
 
-<b>Comandos:</b>
-/start - Esta mensagem
-/status - Status atual
-/clear - Limpar historico
-/model - Ver/trocar modelo
-/provider - Ver/trocar provider
-/params - Ver/alterar parametros
-/saveparams - Salvar como padrao
-/logs [n] - Ver ultimos turnos
-/reboot - Reiniciar
+${t('telegram:commands.start.commands_header')}
+${t('telegram:commands.start.cmd_start')}
+${t('telegram:commands.start.cmd_status')}
+${t('telegram:commands.start.cmd_clear')}
+${t('telegram:commands.start.cmd_model')}
+${t('telegram:commands.start.cmd_provider')}
+${t('telegram:commands.start.cmd_params')}
+${t('telegram:commands.start.cmd_saveparams')}
+${t('telegram:commands.start.cmd_logs')}
+${t('telegram:commands.start.cmd_reboot')}
+${t('telegram:commands.start.cmd_language')}
 
-Envie mensagens de texto ou audio!
+${t('telegram:commands.start.footer')}
     `.trim();
 
     await this.sendMessage(chatId, welcomeMsg);
@@ -235,15 +270,17 @@ Envie mensagens de texto ou audio!
 
     if (!userId || !this.isAllowedUser(userId)) return;
 
+    await this.setLanguage(userId, msg);
+
     const memory = this.agentService.getMemory();
     const state = memory.state.getState();
     const todos = memory.state.getTodos();
     const recentSessions = memory.short.getRecentSessions(3);
 
-    let statusMsg = '📊 <b>Status do Protoagente</b>\n\n';
+    let statusMsg = t('telegram:commands.status.title') + '\n\n';
 
     if (todos.length > 0) {
-      statusMsg += '<b>Tarefas Atuais:</b>\n';
+      statusMsg += t('telegram:commands.status.tasks_current') + '\n';
       todos.forEach((todo, i) => {
         const status =
           todo.status === 'completed' ? '✅' : todo.status === 'in_progress' ? '🔄' : '⏳';
@@ -251,12 +288,12 @@ Envie mensagens de texto ou audio!
       });
       statusMsg += '\n';
     } else {
-      statusMsg += '<b>Tarefas:</b> Nenhuma tarefa ativa\n\n';
+      statusMsg += t('telegram:commands.status.tasks_none') + '\n\n';
     }
 
     if (recentSessions.length > 0) {
-      statusMsg += `<b>Ultimas Interacoes:</b> ${recentSessions.length}\n`;
-      statusMsg += `<b>Ultima atualizacao:</b> ${new Date(state.lastUpdate).toLocaleString()}\n`;
+      statusMsg += t('telegram:commands.status.recent_sessions', { count: recentSessions.length }) + '\n';
+      statusMsg += t('telegram:commands.status.last_update', { date: new Date(state.lastUpdate).toLocaleString() }) + '\n';
     }
 
     await this.sendMessage(chatId, statusMsg);
@@ -268,11 +305,13 @@ Envie mensagens de texto ou audio!
 
     if (!userId || !this.isAllowedUser(userId)) return;
 
+    await this.setLanguage(userId, msg);
+
     this.agentService.clearSession(String(userId));
     const session = this.agentService.getSession(String(userId));
-    const sessionInfo = session.sessionId ? ` (sessao: ${session.sessionId.slice(0, 8)}...)` : '';
+    const sessionInfo = session.sessionId ? t('telegram:commands.clear.session_info', { sessionId: session.sessionId.slice(0, 8) }) : '';
 
-    await this.sendMessage(chatId, `🗑️ Historico limpo!${sessionInfo}\n\n💡 Nova conversa iniciada.`);
+    await this.sendMessage(chatId, t('telegram:commands.clear.success', { sessionInfo }));
   }
 
   private async handleContextCommand(msg: Message, args?: string): Promise<void> {
@@ -281,19 +320,21 @@ Envie mensagens de texto ou audio!
 
     if (!userId || !this.isAllowedUser(userId)) return;
 
+    await this.setLanguage(userId, msg);
+
     if (!args) {
       const session = this.agentService.getSession(String(userId));
       const sessionInfo = session.sessionId
-        ? `\n📋 <b>Session ID:</b> <code>${session.sessionId}</code>`
+        ? t('telegram:commands.context.session_id', { sessionId: session.sessionId })
         : '';
 
-      let statusMsg = `🧠 <b>Contexto de Sessao</b>\n\n`;
-      statusMsg += `<b>Provider:</b> ${this.agentService.getProviderDisplayName()}\n`;
-      statusMsg += `<b>Modo:</b> ${session.contextMode}${sessionInfo}\n\n`;
-      statusMsg += `<b>Comandos:</b>\n`;
-      statusMsg += `• <code>/context continue</code> - Continua ultima sessao\n`;
-      statusMsg += `• <code>/context none</code> - Sem memoria\n`;
-      statusMsg += `• <code>/clear</code> - Limpa e inicia nova sessao`;
+      let statusMsg = t('telegram:commands.context.title') + '\n\n';
+      statusMsg += t('telegram:commands.context.provider', { provider: this.agentService.getProviderDisplayName() }) + '\n';
+      statusMsg += t('telegram:commands.context.mode', { mode: session.contextMode, sessionInfo }) + '\n\n';
+      statusMsg += t('telegram:commands.context.commands_header') + '\n';
+      statusMsg += t('telegram:commands.context.cmd_continue') + '\n';
+      statusMsg += t('telegram:commands.context.cmd_none') + '\n';
+      statusMsg += t('telegram:commands.context.cmd_clear');
 
       await this.sendMessage(chatId, statusMsg);
       return;
@@ -303,9 +344,9 @@ Envie mensagens de texto ou audio!
     if (mode === 'continue' || mode === 'none' || mode === 'resume') {
       this.agentService.setContextMode(String(userId), mode as 'none' | 'continue' | 'resume');
       const emoji = mode === 'continue' ? '🔄' : mode === 'none' ? '🔕' : '📂';
-      await this.sendMessage(chatId, `${emoji} <b>Modo de contexto:</b> ${mode}`);
+      await this.sendMessage(chatId, t('telegram:commands.context.mode_changed', { emoji, mode }));
     } else {
-      await this.sendMessage(chatId, `❌ Modo invalido. Use: continue, none, ou resume`);
+      await this.sendMessage(chatId, t('telegram:errors.invalid_mode', { modes: 'continue, none, ou resume' }));
     }
   }
 
@@ -315,22 +356,24 @@ Envie mensagens de texto ou audio!
 
     if (!userId || !this.isAllowedUser(userId)) return;
 
+    await this.setLanguage(userId, msg);
+
     if (!args) {
       const params = this.agentService.getParams();
-      let paramsMsg = `⚙️ <b>Parametros Atuais</b>\n\n`;
+      let paramsMsg = t('telegram:commands.params.title') + '\n\n';
 
       Object.entries(params).forEach(([key, value]) => {
-        paramsMsg += `<b>${key}:</b> <code>${JSON.stringify(value)}</code>\n`;
+        paramsMsg += t('telegram:commands.params.param_line', { key, value: JSON.stringify(value) }) + '\n';
       });
 
-      paramsMsg += '\n<i>Use /params chave=valor para alterar</i>';
+      paramsMsg += '\n' + t('telegram:commands.params.hint');
       await this.sendMessage(chatId, paramsMsg);
       return;
     }
 
     const match = args.match(/^(\w+)\s*=\s*(.+)$/);
     if (!match || !match[1] || !match[2]) {
-      await this.sendMessage(chatId, '❌ Formato invalido. Use: /params chave=valor');
+      await this.sendMessage(chatId, t('telegram:errors.invalid_format', { format: '/params chave=valor' }));
       return;
     }
 
@@ -345,7 +388,7 @@ Envie mensagens de texto ou audio!
     }
 
     this.agentService.setParam(key, value);
-    await this.sendMessage(chatId, `✅ Parametro <b>${key}</b> = <code>${JSON.stringify(value)}</code>`);
+    await this.sendMessage(chatId, t('telegram:commands.params.updated', { key, value: JSON.stringify(value) }));
   }
 
   private async handleModelCommand(msg: Message, modelName?: string): Promise<void> {
@@ -354,16 +397,19 @@ Envie mensagens de texto ou audio!
 
     if (!userId || !this.isAllowedUser(userId)) return;
 
+    await this.setLanguage(userId, msg);
+
     if (!modelName) {
       const models = await this.agentService.listModels();
       const currentModel = this.agentService.getModel();
 
-      let modelMsg = `🤖 <b>Modelos Disponiveis</b>\n\n`;
+      let modelMsg = t('telegram:commands.model.title') + '\n\n';
       models.forEach((model) => {
         const isCurrent = model === currentModel;
-        modelMsg += `${isCurrent ? '✅' : '○'} <code>${model}</code>${isCurrent ? ' (atual)' : ''}\n`;
+        const currentIndicator = isCurrent ? t('telegram:commands.model.current_indicator') : '';
+        modelMsg += `${isCurrent ? '✅' : '○'} <code>${model}</code>${currentIndicator}\n`;
       });
-      modelMsg += `\n<i>Use /model nome para trocar</i>`;
+      modelMsg += '\n' + t('telegram:commands.model.hint');
 
       await this.sendMessage(chatId, modelMsg);
       return;
@@ -371,10 +417,10 @@ Envie mensagens de texto ou audio!
 
     try {
       await this.agentService.setModel(modelName);
-      await this.sendMessage(chatId, `✅ Modelo alterado para <code>${modelName}</code>`);
+      await this.sendMessage(chatId, t('telegram:commands.model.changed', { model: modelName }));
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      await this.sendMessage(chatId, `❌ ${errorMsg}`);
+      await this.sendMessage(chatId, t('telegram:errors.generic_simple', { message: errorMsg }));
     }
   }
 
@@ -384,16 +430,19 @@ Envie mensagens de texto ou audio!
 
     if (!userId || !this.isAllowedUser(userId)) return;
 
+    await this.setLanguage(userId, msg);
+
     if (!providerName) {
       const providers = this.agentService.listProviders();
       const currentProvider = this.agentService.getProviderName();
 
-      let providerMsg = `🔌 <b>Providers Disponiveis</b>\n\n`;
+      let providerMsg = t('telegram:commands.provider.title') + '\n\n';
       providers.forEach((provider) => {
         const isCurrent = provider === currentProvider;
-        providerMsg += `${isCurrent ? '✅' : '○'} <code>${provider}</code>${isCurrent ? ' (atual)' : ''}\n`;
+        const currentIndicator = isCurrent ? t('telegram:commands.provider.current_indicator') : '';
+        providerMsg += `${isCurrent ? '✅' : '○'} <code>${provider}</code>${currentIndicator}\n`;
       });
-      providerMsg += `\n<i>Use /provider nome para trocar</i>`;
+      providerMsg += '\n' + t('telegram:commands.provider.hint');
 
       await this.sendMessage(chatId, providerMsg);
       return;
@@ -404,11 +453,14 @@ Envie mensagens de texto ou audio!
       await this.agentService.setProvider(providerName);
       await this.sendMessage(
         chatId,
-        `✅ Provider alterado de <b>${oldProvider}</b> para <b>${this.agentService.getProviderDisplayName()}</b>`
+        t('telegram:commands.provider.changed', {
+          oldProvider,
+          newProvider: this.agentService.getProviderDisplayName()
+        })
       );
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      await this.sendMessage(chatId, `❌ ${errorMsg}`);
+      await this.sendMessage(chatId, t('telegram:errors.generic_simple', { message: errorMsg }));
     }
   }
 
@@ -418,8 +470,10 @@ Envie mensagens de texto ou audio!
 
     if (!userId || !this.isAllowedUser(userId)) return;
 
+    await this.setLanguage(userId, msg);
+
     this.agentService.saveParamsAsDefaults();
-    await this.sendMessage(chatId, '💾 Parametros salvos como padrao!');
+    await this.sendMessage(chatId, t('telegram:commands.saveparams.success'));
   }
 
   private async handleTodoCommand(msg: Message, args?: string): Promise<void> {
@@ -428,22 +482,24 @@ Envie mensagens de texto ou audio!
 
     if (!userId || !this.isAllowedUser(userId)) return;
 
+    await this.setLanguage(userId, msg);
+
     const memory = this.agentService.getMemory();
 
     if (!args) {
       const todos = memory.state.getTodos();
       if (todos.length === 0) {
-        await this.sendMessage(chatId, '📋 <b>Tarefas</b>\n\nNenhuma tarefa. Use /todo add <tarefa>');
+        await this.sendMessage(chatId, t('telegram:commands.todo.empty'));
         return;
       }
 
-      let todoMsg = '📋 <b>Tarefas Atuais</b>\n\n';
+      let todoMsg = t('telegram:commands.todo.title') + '\n\n';
       todos.forEach((todo, i) => {
         const status =
           todo.status === 'completed' ? '✅' : todo.status === 'in_progress' ? '🔄' : '⏳';
         todoMsg += `${status} ${i + 1}. ${todo.task}\n`;
       });
-      todoMsg += '\n<i>/todo mark n status | /todo delete n</i>';
+      todoMsg += '\n' + t('telegram:commands.todo.hint');
 
       await this.sendMessage(chatId, todoMsg);
       return;
@@ -455,23 +511,23 @@ Envie mensagens de texto ou audio!
     if (subcommand === 'add') {
       const task = parts.slice(1).join(' ');
       if (!task) {
-        await this.sendMessage(chatId, '❌ Use: /todo add <tarefa>');
+        await this.sendMessage(chatId, t('telegram:errors.invalid_todo_add'));
         return;
       }
       memory.state.addTodo(task);
-      await this.sendMessage(chatId, `✅ Tarefa adicionada: "${task}"`);
+      await this.sendMessage(chatId, t('telegram:commands.todo.added', { task }));
     } else if (subcommand === 'mark') {
       if (!parts[1] || !parts[2]) {
-        await this.sendMessage(chatId, '❌ Use: /todo mark n pending|in_progress|completed');
+        await this.sendMessage(chatId, t('telegram:errors.invalid_todo_mark'));
         return;
       }
       const index = parseInt(parts[1]) - 1;
       const status = parts[2] as 'pending' | 'in_progress' | 'completed';
       memory.state.updateTodoStatus(index, status);
-      await this.sendMessage(chatId, `✅ Status atualizado: ${status}`);
+      await this.sendMessage(chatId, t('telegram:commands.todo.status_updated', { status }));
     } else if (subcommand === 'delete') {
       if (!parts[1]) {
-        await this.sendMessage(chatId, '❌ Use: /todo delete n');
+        await this.sendMessage(chatId, t('telegram:errors.invalid_todo_delete'));
         return;
       }
       const index = parseInt(parts[1]) - 1;
@@ -480,7 +536,7 @@ Envie mensagens de texto ou audio!
         const task = todos[index]?.task;
         todos.splice(index, 1);
         memory.state.updateTodos(todos);
-        await this.sendMessage(chatId, `✅ Tarefa removida: "${task}"`);
+        await this.sendMessage(chatId, t('telegram:commands.todo.deleted', { task }));
       }
     }
   }
@@ -491,22 +547,24 @@ Envie mensagens de texto ou audio!
 
     if (!userId || !this.isAllowedUser(userId)) return;
 
+    await this.setLanguage(userId, msg);
+
     const count = countStr ? parseInt(countStr) : 5;
     const turns = this.agentService.getTurnLogger().getLoggedTurns().slice(-count);
 
     if (turns.length === 0) {
-      await this.sendMessage(chatId, '📋 Nenhum turno logado.');
+      await this.sendMessage(chatId, t('telegram:commands.logs.empty'));
       return;
     }
 
-    let logsMsg = `📋 <b>Ultimos ${turns.length} Turnos</b>\n\n`;
+    let logsMsg = t('telegram:commands.logs.title', { count: turns.length }) + '\n\n';
     turns.forEach((turn, i) => {
       const date = new Date(turn.timestamp).toLocaleString();
       const status = turn.completed ? '✅' : '❌';
       const duration = (turn.duration / 1000).toFixed(1);
-      logsMsg += `<b>${i + 1}. ${status} ${date}</b>\n`;
-      logsMsg += `Prompt: <code>${turn.userPrompt.substring(0, 50)}...</code>\n`;
-      logsMsg += `Duracao: ${duration}s | Acoes: ${turn.actions.length}\n\n`;
+      logsMsg += t('telegram:commands.logs.entry_header', { index: i + 1, status, date }) + '\n';
+      logsMsg += t('telegram:commands.logs.entry_prompt', { prompt: turn.userPrompt.substring(0, 50) }) + '\n';
+      logsMsg += t('telegram:commands.logs.entry_stats', { duration, actions: turn.actions.length }) + '\n\n';
     });
 
     await this.sendMessage(chatId, logsMsg);
@@ -518,12 +576,37 @@ Envie mensagens de texto ou audio!
 
     if (!userId || !this.isAllowedUser(userId)) return;
 
-    await this.sendMessage(chatId, '🔄 Reiniciando...');
+    await this.setLanguage(userId, msg);
+
+    await this.sendMessage(chatId, t('telegram:commands.reboot.message'));
 
     const { exec } = require('child_process');
     exec('bash scripts/restart.sh', (error: Error | null) => {
       if (error) console.error('Error executing restart:', error);
     });
+  }
+
+  private async handleLanguageCommand(msg: Message, lang?: string): Promise<void> {
+    const chatId = msg.chat.id;
+    const userId = msg.from?.id;
+
+    if (!userId || !this.isAllowedUser(userId)) return;
+
+    await this.setLanguage(userId, msg);
+
+    if (!lang) {
+      const current = this.getUserLanguage(userId, msg);
+      await this.sendMessage(chatId, t('telegram:commands.language.current', { current }));
+      return;
+    }
+
+    if (['pt-BR', 'en'].includes(lang)) {
+      this.agentService.getMemory().state.setUserLanguage(String(userId), lang);
+      await i18n.changeLanguage(lang);
+      await this.sendMessage(chatId, t('telegram:commands.language.changed', { lang }));
+    } else {
+      await this.sendMessage(chatId, t('telegram:commands.language.invalid'));
+    }
   }
 
   // ==================== Message Handlers ====================
@@ -535,8 +618,10 @@ Envie mensagens de texto ou audio!
 
     if (!userId || !this.isAllowedUser(userId) || !text) return;
 
+    await this.setLanguage(userId, msg);
+
     if (this.agentService.isProcessing(String(userId))) {
-      await this.sendMessage(chatId, '⏳ Aguarde a resposta anterior...');
+      await this.sendMessage(chatId, t('telegram:errors.wait_previous'));
       return;
     }
 
@@ -554,7 +639,7 @@ Envie mensagens de texto ou audio!
     } catch (error) {
       this.stopContinuousTyping(chatId);
       const errorMsg = error instanceof Error ? error.message : String(error);
-      await this.sendMessage(chatId, `❌ <b>Erro:</b> ${errorMsg}`);
+      await this.sendMessage(chatId, t('telegram:errors.generic', { message: errorMsg }));
     }
   }
 
@@ -565,13 +650,15 @@ Envie mensagens de texto ou audio!
 
     if (!userId || !this.isAllowedUser(userId) || !voice) return;
 
+    await this.setLanguage(userId, msg);
+
     if (this.agentService.isProcessing(String(userId))) {
-      await this.sendMessage(chatId, '⏳ Aguarde a resposta anterior...');
+      await this.sendMessage(chatId, t('telegram:errors.wait_previous'));
       return;
     }
 
     try {
-      await this.sendMessage(chatId, '🎤 Transcrevendo audio...');
+      await this.sendMessage(chatId, t('telegram:processing.transcribing'));
 
       const fileLink = await this.bot.getFileLink(voice.file_id);
       const response = await fetch(fileLink);
@@ -581,7 +668,7 @@ Envie mensagens de texto ou audio!
         stream: false,
       });
 
-      await this.sendMessage(chatId, `📝 <i>Transcricao:</i> "${result.transcription}"\n`);
+      await this.sendMessage(chatId, t('telegram:processing.transcription_result', { transcription: result.transcription }));
 
       this.startContinuousTyping(chatId);
 
@@ -592,7 +679,7 @@ Envie mensagens de texto ou audio!
     } catch (error) {
       this.stopContinuousTyping(chatId);
       const errorMsg = error instanceof Error ? error.message : String(error);
-      await this.sendMessage(chatId, `❌ ${errorMsg}`);
+      await this.sendMessage(chatId, t('telegram:errors.generic_simple', { message: errorMsg }));
     }
   }
 

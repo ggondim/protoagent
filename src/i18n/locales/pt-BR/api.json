@@ -1,0 +1,19 @@
+{
+  "errors": {
+    "unauthorized": {
+      "title": "Unauthorized",
+      "message": "Invalid or missing API key"
+    },
+    "bad_request": {
+      "title": "Bad Request",
+      "message": "Either text or audio is required"
+    },
+    "internal_server_error": {
+      "title": "Internal Server Error",
+      "message": "{{message}}"
+    }
+  },
+  "health": {
+    "status": "ok"
+  }
+}

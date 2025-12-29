@@ -72,6 +72,7 @@ export interface AgentState {
   currentPrompt: string;
   todos: TodoItem[];
   lastUpdate: string;
+  userLanguages?: Record<string, string>; // userId -> language code (pt-BR, en)
 }
 
 export interface ShortMemory {

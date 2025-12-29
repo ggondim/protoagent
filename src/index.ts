@@ -122,9 +122,11 @@ async function main() {
     console.error('🛑 Circuit breaker activated - too many crashes');
 
     try {
+      const lang = process.env.DEFAULT_LANGUAGE || 'pt-BR';
       await resilience.sendBootNotificationDirect(
         config.telegram.botToken,
-        config.telegram.allowedUserIds
+        config.telegram.allowedUserIds,
+        lang
       );
     } catch (error) {
       console.error('Failed to send circuit breaker notification:', error);
@@ -219,8 +221,9 @@ async function main() {
 
   // Send boot notification via Telegram
   if (telegramChannel && config.telegram.enabled !== false) {
+    const lang = process.env.DEFAULT_LANGUAGE || 'pt-BR';
     if (crashInfo) {
-      const message = resilience.formatCrashInfo(crashInfo);
+      const message = await resilience.formatCrashInfo(crashInfo, lang);
       await telegramChannel.sendNotification(message);
       console.log('\n✅ Crash notification sent');
     } else {

@@ -100,6 +100,19 @@ export class StateManager {
     }
   }
 
+  setUserLanguage(userId: string, lang: string): void {
+    if (!this.state.userLanguages) {
+      this.state.userLanguages = {};
+    }
+    this.state.userLanguages[userId] = lang;
+    this.state.lastUpdate = new Date().toISOString();
+    this.saveState();
+  }
+
+  getUserLanguage(userId: string): string | undefined {
+    return this.state.userLanguages?.[userId];
+  }
+
   getState(): AgentState {
     return { ...this.state };
   }

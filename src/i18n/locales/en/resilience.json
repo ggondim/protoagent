@@ -1,0 +1,18 @@
+{
+  "crash": {
+    "title": "⚠️ <b>RESTART AFTER CRASH</b>",
+    "datetime": "<b>Date/Time:</b> {{date}}",
+    "count": "<b>Crash #{{crashCount}}</b> of {{maxCrashes}} maximum",
+    "pending_prompt": "<b>Pending Prompt:</b>\n<code>{{prompt}}{{truncated}}</code>",
+    "truncated_indicator": "...",
+    "recent_errors": "<b>Recent Errors:</b>\n<pre>{{errors}}</pre>"
+  },
+  "circuit_breaker": {
+    "title": "🛑 <b>CIRCUIT BREAKER ACTIVATED</b>",
+    "message": "The system detected <b>{{count}}</b> consecutive crashes and has been disabled for safety.",
+    "crashes_header": "<b>Recent crashes:</b>",
+    "crash_entry_header": "<b>{{index}}. {{date}}</b>",
+    "crash_entry_prompt": "Prompt: <code>{{prompt}}...</code>",
+    "footer": "<i>Please check the logs and restart manually after fixing the issue.</i>"
+  }
+}
