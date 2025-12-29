@@ -1,12 +1,12 @@
-# 🤖 Protoagente
+# 🤖 Protoagent
 
 > **Your AI assistant, your way.** A powerful multi-channel wrapper that lets you interact with AI agents (Claude, Copilot) through Telegram or REST API, using your own subscriptions and running entirely under your control.
 
-Protoagente is a production-ready AI agent orchestrator that bridges the gap between powerful AI providers (Claude SDK, GitHub Copilot CLI) and your preferred communication channels. Built with resilience, memory, and flexibility in mind — no vendor lock-in, just pure control over your AI interactions.
+Protoagent is a production-ready AI agent orchestrator that bridges the gap between powerful AI providers (Claude SDK, GitHub Copilot CLI) and your preferred communication channels. Built with resilience, memory, and flexibility in mind — no vendor lock-in, just pure control over your AI interactions.
 
 ---
 
-## 🎯 Why Protoagente?
+## 🎯 Why Protoagent?
 
 - **🔌 Bring Your Own Subscription**: Use your existing Claude Desktop or GitHub Copilot subscriptions — no additional API costs
 - **💬 Multi-Channel**: Interact via Telegram bot OR REST API (perfect for Siri/Apple Watch integration)
@@ -31,7 +31,7 @@ Protoagente is a production-ready AI agent orchestrator that bridges the gap bet
 ```bash
 # Clone and setup
 git clone <repository-url>
-cd protoagente
+cd Protoagent
 bash scripts/setup.sh
 
 # Configure environment
@@ -113,17 +113,17 @@ pm2 save                       # Save for auto-restart on reboot
 
 **Stop:**
 ```bash
-pm2 stop protoagente
+pm2 stop Protoagent
 ```
 
 **Restart:**
 ```bash
-pm2 restart protoagente
+pm2 restart Protoagent
 ```
 
 **Monitor:**
 ```bash
-pm2 logs protoagente           # Stream logs
+pm2 logs Protoagent           # Stream logs
 pm2 monit                      # Real-time monitoring
 ```
 
@@ -132,10 +132,12 @@ pm2 monit                      # Real-time monitoring
 #### Switching via Environment
 
 Edit `.env`:
+
 ```env
 AI_PROVIDER=claude    # or 'copilot'
 ```
-Then restart: `pm2 restart protoagente`
+
+Then restart: `pm2 restart Protoagent`
 
 #### Switching via Channel
 
@@ -340,7 +342,7 @@ bun install          # Install/update packages
 ### Project Structure
 
 ```
-protoagente/
+Protoagent/
 ├── src/
 │   ├── index.ts              # Main entry point, boots all channels
 │   ├── core/
@@ -378,9 +380,9 @@ tail -f logs/copilot.log      # Copilot-specific log (if using Copilot)
 
 **PM2 logs:**
 ```bash
-pm2 logs protoagente          # Stream all logs
-pm2 logs protoagente --err    # Error logs only
-pm2 logs protoagente --lines 100  # Last 100 lines
+pm2 logs Protoagent          # Stream all logs
+pm2 logs Protoagent --err    # Error logs only
+pm2 logs Protoagent --lines 100  # Last 100 lines
 ```
 
 **Turn logs:**
@@ -414,7 +416,7 @@ cat data/CRASHES.json
 
 # Clear crashes and restart
 rm data/CRASHES.json
-pm2 restart protoagente
+pm2 restart Protoagent
 ```
 
 **Provider not available:**
@@ -434,7 +436,7 @@ cat data/sessions.json
 
 # Clear and restart
 rm data/sessions.json
-pm2 restart protoagente
+pm2 restart Protoagent
 ```
 
 **API not responding:**
@@ -456,18 +458,16 @@ Enable verbose logging:
 LOG_LEVEL=debug
 ```
 
-Then restart: `pm2 restart protoagente`
+Then restart: `pm2 restart Protoagent`
 
 ---
 
 ## 🗺️ Roadmap
 
+- [ ] Conversation/session database
 - [ ] Web dashboard for monitoring and control
-- [ ] Support for more providers (OpenAI API, local LLMs)
-- [ ] Plugin system for custom tools
+- [ ] Support for more providers (OpenAI Codex, local LLMs)
 - [ ] Multi-user isolation with separate contexts
-- [ ] Conversation export/import
-- [ ] Custom skills/prompts library
 
 ---
 
