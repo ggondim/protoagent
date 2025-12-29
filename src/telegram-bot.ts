@@ -6,6 +6,7 @@
 import TelegramBot from 'node-telegram-bot-api';
 import type { Message } from 'node-telegram-bot-api';
 import type { AgentProvider, AgentContentBlock } from './providers/types.js';
+import { createProvider, providerRegistry } from './providers/index.js';
 import type { WhisperTranscriber } from './whisper.js';
 import type { MemoryManager } from './memory.js';
 import type { ResilienceManager } from './resilience.js';
@@ -30,6 +31,7 @@ export class ProtoagentBot {
   private bot: TelegramBot;
   private config: TelegramConfig;
   private agent: AgentProvider;
+  private agentCwd: string; // Store the cwd for creating new providers
   private whisper: WhisperTranscriber;
   private memory: MemoryManager;
   private resilience: ResilienceManager;
@@ -42,12 +44,14 @@ export class ProtoagentBot {
   constructor(
     config: TelegramConfig,
     agent: AgentProvider,
+    agentCwd: string,
     whisper: WhisperTranscriber,
     memory: MemoryManager,
     resilience: ResilienceManager
   ) {
     this.config = config;
     this.agent = agent;
+    this.agentCwd = agentCwd;
     this.whisper = whisper;
     this.memory = memory;
     this.resilience = resilience;
@@ -222,6 +226,11 @@ Seja conservador: só considere travado se houver evidência clara.`;
     // Handle /model command
     this.bot.onText(/\/model(?:\s+(.+))?/, async (msg, match) => {
       await this.handleModelCommand(msg, match?.[1]?.trim());
+    });
+
+    // Handle /provider command
+    this.bot.onText(/\/provider(?:\s+(.+))?/, async (msg, match) => {
+      await this.handleProviderCommand(msg, match?.[1]?.trim());
     });
 
     // Handle /saveparams command
@@ -896,9 +905,89 @@ Pode me enviar mensagens de texto ou áudio!
     // Trocar modelo
     this.agent.setParam('model', modelName);
     this.guardrails.params.setParam('model', modelName);
-    
+
     await this.sendMessage(chatId, `✅ Modelo alterado para <code>${modelName}</code>`);
   }
+
+  /**
+   * Handle /provider command
+   */
+  private async handleProviderCommand(msg: Message, providerName?: string): Promise<void> {
+    const chatId = msg.chat.id;
+    const userId = msg.from?.id;
+
+    if (!userId || !this.isAllowedUser(userId)) {
+      return;
+    }
+
+    // If no provider specified, list available providers
+    if (!providerName) {
+      const providers = providerRegistry.list();
+      const currentProvider = this.agent.name;
+
+      let providerMsg = `🔌 <b>Providers Disponíveis</b>\n\n`;
+      providers.forEach((provider) => {
+        const isCurrent = provider === currentProvider;
+        providerMsg += `${isCurrent ? '✅' : '○'} <code>${provider}</code>${isCurrent ? ' (atual)' : ''}\n`;
+      });
+
+      providerMsg += `\n<i>Use /provider nome_do_provider para trocar</i>`;
+      providerMsg += `\n\n<b>Provider atual:</b> ${this.agent.displayName}`;
+
+      await this.sendMessage(chatId, providerMsg);
+      return;
+    }
+
+    // Validate provider
+    const providers = providerRegistry.list();
+    if (!providers.includes(providerName)) {
+      await this.sendMessage(chatId, `❌ Provider não encontrado: <code>${providerName}</code>\n\nUse /provider para ver os disponíveis.`);
+      return;
+    }
+
+    // Check if it's already the current provider
+    if (this.agent.name === providerName) {
+      await this.sendMessage(chatId, `ℹ️ Você já está usando o provider <code>${providerName}</code>`);
+      return;
+    }
+
+    try {
+      // Create new provider instance
+      const newProvider = createProvider(providerName, {
+        cwd: this.agentCwd,
+      });
+
+      // Check if provider is available
+      const isAvailable = await newProvider.isAvailable();
+      if (!isAvailable) {
+        await this.sendMessage(chatId, `❌ Provider <code>${providerName}</code> não está disponível no momento.\n\nVerifique se está instalado e configurado corretamente.`);
+        return;
+      }
+
+      // Store old provider info
+      const oldProviderName = this.agent.displayName;
+
+      // Switch to new provider
+      this.agent = newProvider;
+
+      // Setup analyst agent for guardrails with new provider
+      this.setupAnalystAgent();
+
+      // Clear context for fresh start
+      if (this.agent.clearContext) {
+        this.agent.clearContext();
+      }
+
+      // Initialize session for new provider
+      this.ensureUserSession();
+
+      await this.sendMessage(chatId, `✅ Provider alterado de <b>${oldProviderName}</b> para <b>${this.agent.displayName}</b>\n\n💡 Contexto limpo - nova conversa iniciada.`);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      await this.sendMessage(chatId, `❌ Erro ao trocar provider: ${errorMsg}`);
+    }
+  }
+
   /**
    * Handle /todo command - manage TODO list
    */

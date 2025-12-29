@@ -173,6 +173,7 @@ async function main() {
   const bot = new ProtoagentBot(
     config.telegram,
     agent,
+    config.ai.cwd,
     whisper,
     memory,
     resilience
