@@ -1,0 +1,43 @@
+# Git
+.git
+.github
+.gitignore
+
+# Environment
+.env
+.env.local
+.env.*
+
+# Data and logs (will be mounted as volumes)
+data/
+logs/
+.bot-runtime/
+
+# Node modules (will be installed in container)
+node_modules/
+.bun/
+bun.lockb
+
+# Development
+.vscode/
+.idea/
+*.swp
+*.swo
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+*.log
+
+# Documentation
+README.md
+CHANGELOG.md
+LICENSE
+*.md
+
+# Docker
+Dockerfile
+docker-compose.yml
+docker-compose.dev.yml
+.dockerignore

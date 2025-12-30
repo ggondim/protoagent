@@ -22,17 +22,17 @@ A project that connects a Telegram bot to a local AI via a Bun application.
 
 ## Resilience
 - Agent call errors are reported to the user in a friendly way and saved to the error log.
-- The application runs under PM2 with automatic restart for failover.
+- The application runs in Docker with automatic restart policy for failover.
 
 ### Boot
 - Before each Agent turn, the application saves the user prompt to a `PENDING_TURN` file. The file is cleared at the end of the turn.
 - On application boot, `PENDING_TURN` is checked. If a pending prompt exists, this indicates a boot after a crash (a "dirty boot").
 - If booting after a crash, a `CRASHES.json` file is created containing an entry with boot timestamp, the pending prompt and an error log dump. A message is also sent to the user notifying about the dirty boot with the same data.
-- The boot process checks `CRASHES.json` first. If there are more than three entries it aborts startup using a circuit breaker, sends a message to the user and disables the service in PM2.
+- The boot process checks `CRASHES.json` first. If there are more than three entries it aborts startup using a circuit breaker, sends a message to the user and exits with error code 1 (stopping the container).
 - Error logs and the pending prompt file are cleared at the end of each boot (after they have been collected in the case of a dirty boot).
 - On each clean boot (no errors), `CRASHES.json` is also removed.
-- Planned restarts should be performed with the `restart.sh` script which clears `PENDING_TURN` and restarts the PM2 service.
-- Planned restarts can be triggered: (1) manually by the operator via `restart.sh`; (2) by the Agent itself via tool calling; or (3) by the user via the `/reboot` Telegram command.
+- Planned restarts should use `docker-compose restart protoagente`. The application's graceful shutdown handler automatically clears `PENDING_TURN` on SIGTERM.
+- Planned restarts can be triggered: (1) manually by the operator via Docker commands; (2) by the Agent itself via tool calling; or (3) by the user via the `/reboot` Telegram command.
 
 ## Parameterization
 - The user can ask the Agent to change its own model or other supported parameters at any time and the Agent must be able to reconfigure to reflect those parameters.

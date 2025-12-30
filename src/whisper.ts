@@ -34,7 +34,7 @@ export class WhisperTranscriber {
     // Validate whisper binary exists
     if (!existsSync(this.whisperBinary)) {
       console.error(`[Whisper] Binary not found at: ${this.whisperBinary}`);
-      console.error('[Whisper] Run: bash scripts/setup.sh to compile whisper.cpp');
+      console.error('[Whisper] Rebuild Docker image: docker-compose build --no-cache');
     }
   }
 
@@ -181,7 +181,7 @@ export class WhisperTranscriber {
         reject(new Error(
           `Failed to execute whisper binary: ${error.message}\n` +
           `Binary path: ${this.whisperBinary}\n` +
-          'Ensure whisper.cpp is compiled for your platform (run: bash scripts/setup.sh)'
+          'Ensure whisper.cpp is compiled for your platform (rebuild: docker-compose build --no-cache)'
         ));
       });
       
@@ -189,7 +189,7 @@ export class WhisperTranscriber {
         if (code !== 0) {
           console.error(`[Whisper] stderr: ${stderr}`);
           const errorMsg = stderr.includes('No such file') || stderr.includes('cannot execute')
-            ? 'Whisper binary incompatible or missing. Run: bash scripts/setup.sh to recompile'
+            ? 'Whisper binary incompatible or missing. Rebuild: docker-compose build --no-cache'
             : `Whisper exited with code ${code}`;
           reject(new Error(errorMsg));
           return;

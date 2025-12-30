@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  protoagente:
+    image: protoagente:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: protoagente
+    restart: unless-stopped
+
+    # Memory limits (500MB max to prevent OOM)
+    mem_limit: 500m
+    mem_reservation: 250m
+
+    # Environment variables
+    env_file:
+      - .env
+
+    # Volume mounts
+    volumes:
+      # Application data (CRITICAL - must persist)
+      - ./data:/app/data
+
+      # Logs (should persist for debugging)
+      - ./logs:/app/logs
+
+      # Claude Desktop authentication (read-only)
+      - ${HOME}/.claude:/home/protoagente/.claude:ro
+
+      # GitHub Copilot CLI authentication (read-only)
+      - ${HOME}/.config/github-copilot:/home/protoagente/.config/github-copilot:ro
+
+      # Whisper models cache (optional, improves startup time)
+      - whisper-models:/app/node_modules/whisper-node/lib/whisper.cpp/models
+
+    # Logging configuration (automatic rotation)
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "30"
+        compress: "true"
+
+    # Network (only expose if API is enabled)
+    ports:
+      - "${API_PORT:-3000}:${API_PORT:-3000}"
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "bun", "run", "src/healthcheck.ts"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  whisper-models:
+    driver: local

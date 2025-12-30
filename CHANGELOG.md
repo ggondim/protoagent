@@ -5,6 +5,48 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2025-12-29
+
+### Changed
+- **BREAKING**: Migrated from PM2 to Docker for process management
+  - Replaced PM2 ecosystem configuration with Docker Compose
+  - Better isolation between development and production environments
+  - Improved portability and deployment consistency
+- **Architecture**: Removed `.bot-runtime` directory isolation
+  - AI providers now use project root as working directory
+  - Simplified configuration structure
+  - Removed unnecessary complexity
+- **Restart Mechanism**: Graceful shutdown now handles all cleanup automatically
+  - `docker-compose restart` triggers SIGTERM handler that cleans `PENDING_TURN.txt`
+  - No separate restart script needed - Docker handles planned restarts natively
+  - `/reboot` Telegram command and `bun run restart` use Docker directly
+  - Updated documentation to reflect Docker-first approach
+
+### Added
+- **Docker Support**: Complete containerization with multi-stage builds
+  - `Dockerfile` with optimized multi-stage build (builder + production)
+  - `docker-compose.yml` for production deployment
+  - `docker-compose.dev.yml` for development with hot reload
+  - `.dockerignore` for optimized build context
+  - `src/healthcheck.ts` for Docker health checks
+- **Log Rotation**: Native Docker logging driver with compression
+  - Replaces pm2-logrotate with Docker's json-file driver
+  - 10MB max size, 30 files retention, automatic compression
+- **Memory Limits**: Docker-based memory management (500MB limit)
+- **Development Workflow**: Hot reload support in development mode via Docker Compose
+
+### Removed
+- **PM2 Dependencies**: Complete removal of PM2-related code and files
+  - Removed `pm2 stop` call from circuit breaker (replaced with `process.exit(1)`)
+  - Removed `ecosystem.config.cjs` configuration file
+  - Removed `scripts/restart.sh` (graceful shutdown now handles cleanup automatically)
+  - Removed `scripts/` directory entirely (all setup now done in Docker build)
+  - Removed setup scripts: `setup.sh`, `setup-claude.sh`, `setup-copilot.sh`
+  - Updated `/reboot` command to use `docker-compose restart` directly
+  - Updated `bun run restart` script to use Docker Compose
+  - Replaced all Whisper error messages referencing local scripts with Docker commands
+  - Updated i18n messages (en/pt-BR) to reference Docker rebuild instead of setup scripts
+
 ## [1.2.0] - 2025-12-29
 
 ### Added

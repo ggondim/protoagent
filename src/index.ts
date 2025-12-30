@@ -25,11 +25,9 @@ loadEnv();
 // Ensure required directories exist
 const DATA_DIR = join(process.cwd(), 'data');
 const LOGS_DIR = join(process.cwd(), 'logs');
-const BOT_RUNTIME_DIR = join(process.cwd(), '.bot-runtime');
 
 if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
 if (!existsSync(LOGS_DIR)) mkdirSync(LOGS_DIR, { recursive: true });
-if (!existsSync(BOT_RUNTIME_DIR)) mkdirSync(BOT_RUNTIME_DIR, { recursive: true });
 
 /**
  * Load configuration from environment
@@ -58,7 +56,7 @@ function loadConfig(): AppConfig & {
     },
     ai: {
       provider: ((process.env.AI_PROVIDER as string) || 'claude') as 'claude' | 'copilot',
-      cwd: join(process.cwd(), '.bot-runtime'),
+      cwd: process.cwd(),
     },
     whisper: {
       model: process.env.WHISPER_MODEL || 'base',
@@ -132,15 +130,9 @@ async function main() {
       console.error('Failed to send circuit breaker notification:', error);
     }
 
-    const { exec } = require('child_process');
-    exec('pm2 stop protoagente', (error: Error | null) => {
-      if (error) {
-        console.error('Error stopping PM2:', error);
-      }
-      process.exit(1);
-    });
-
-    return;
+    // Docker will handle restart via restart policy
+    console.error('Circuit breaker activated - halting application');
+    process.exit(1);
   }
 
   // Initialize components

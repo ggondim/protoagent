@@ -581,7 +581,7 @@ ${t('telegram:commands.start.footer')}
     await this.sendMessage(chatId, t('telegram:commands.reboot.message'));
 
     const { exec } = require('child_process');
-    exec('bash scripts/restart.sh', (error: Error | null) => {
+    exec('docker-compose restart protoagente', (error: Error | null) => {
       if (error) console.error('Error executing restart:', error);
     });
   }

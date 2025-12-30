@@ -2,12 +2,12 @@
   "errors": {
     "ffmpeg_not_found": "FFmpeg não encontrado. Instale com: brew install ffmpeg",
     "ffmpeg_failed": "FFmpeg falhou com código {{code}}",
-    "binary_not_found": "Whisper binary not found. Run: bash scripts/setup.sh to compile whisper.cpp",
-    "model_not_found": "Whisper model not found: {{path}}\nRun: bash scripts/setup.sh to download models",
-    "audio_not_found": "Audio file not found: {{path}}",
+    "binary_not_found": "Binário Whisper não encontrado. Reconstrua a imagem Docker: docker-compose build --no-cache",
+    "model_not_found": "Modelo Whisper não encontrado: {{path}}\nReconstrua a imagem Docker: docker-compose build --no-cache",
+    "audio_not_found": "Arquivo de áudio não encontrado: {{path}}",
     "no_speech_detected": "Nenhuma fala detectada no áudio. Verifique se o áudio contém voz clara ou tente um áudio mais longo.",
-    "execution_failed": "Failed to execute whisper binary: {{message}}\nBinary path: {{path}}\nEnsure whisper.cpp is compiled for your platform (run: bash scripts/setup.sh)",
-    "binary_incompatible": "Whisper binary incompatible or missing. Run: bash scripts/setup.sh to recompile",
-    "exit_code": "Whisper exited with code {{code}}"
+    "execution_failed": "Falha ao executar binário whisper: {{message}}\nCaminho do binário: {{path}}\nCertifique-se de que whisper.cpp está compilado para sua plataforma (reconstrua: docker-compose build --no-cache)",
+    "binary_incompatible": "Binário Whisper incompatível ou ausente. Reconstrua: docker-compose build --no-cache",
+    "exit_code": "Whisper terminou com código {{code}}"
   }
 }

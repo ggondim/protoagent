@@ -2,12 +2,12 @@
   "errors": {
     "ffmpeg_not_found": "FFmpeg not found. Install with: brew install ffmpeg",
     "ffmpeg_failed": "FFmpeg failed with code {{code}}",
-    "binary_not_found": "Whisper binary not found. Run: bash scripts/setup.sh to compile whisper.cpp",
-    "model_not_found": "Whisper model not found: {{path}}\nRun: bash scripts/setup.sh to download models",
+    "binary_not_found": "Whisper binary not found. Rebuild Docker image: docker-compose build --no-cache",
+    "model_not_found": "Whisper model not found: {{path}}\nRebuild Docker image: docker-compose build --no-cache",
     "audio_not_found": "Audio file not found: {{path}}",
     "no_speech_detected": "No speech detected in audio. Check if the audio contains clear speech or try a longer audio.",
-    "execution_failed": "Failed to execute whisper binary: {{message}}\nBinary path: {{path}}\nEnsure whisper.cpp is compiled for your platform (run: bash scripts/setup.sh)",
-    "binary_incompatible": "Whisper binary incompatible or missing. Run: bash scripts/setup.sh to recompile",
+    "execution_failed": "Failed to execute whisper binary: {{message}}\nBinary path: {{path}}\nEnsure whisper.cpp is compiled for your platform (rebuild: docker-compose build --no-cache)",
+    "binary_incompatible": "Whisper binary incompatible or missing. Rebuild: docker-compose build --no-cache",
     "exit_code": "Whisper exited with code {{code}}"
   }
 }

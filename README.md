@@ -21,34 +21,149 @@ Protoagent is a production-ready AI agent orchestrator that bridges the gap betw
 
 ### Prerequisites
 
-- [Bun](https://bun.sh) runtime
-- FFmpeg (for audio transcription)
-- C/C++ toolchain (for Whisper compilation)
-- One of: Claude Desktop authenticated OR GitHub Copilot CLI authenticated
+- [Docker](https://docs.docker.com/get-docker/) and Docker Compose
+- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) **OR** [GitHub CLI](https://cli.github.com/) with GitHub Copilot subscription
+- A [Telegram Bot](https://t.me/BotFather) token (or enable API mode only)
 
 ### Installation
 
 ```bash
-# Clone and setup
+# Clone repository
 git clone <repository-url>
-cd Protoagent
-bash scripts/setup.sh
+cd protoagente
 
 # Configure environment
 cp .env.example .env
-# Edit .env with your tokens and preferences
+nano .env  # Edit with your settings (see below)
 
-# Setup your preferred provider
-bash scripts/setup-claude.sh    # For Claude
-# OR
-bash scripts/setup-copilot.sh   # For GitHub Copilot
+# Build and start
+docker-compose up -d
 
-# Start with PM2 (recommended)
-pm2 start ecosystem.config.cjs
-pm2 save
+# View logs
+docker-compose logs -f protoagente
 ```
 
-**That's it!** Your bot is now running and ready to receive messages.
+**That's it!** Your bot is now running in a Docker container.
+
+### Environment Configuration
+
+Edit `.env` with your required settings:
+
+**Required:**
+```env
+# Telegram Bot
+TELEGRAM_BOT_TOKEN=your-telegram-bot-token
+ALLOWED_USER_IDS=123456789,987654321  # Your Telegram user ID(s)
+
+# AI Provider Authentication
+AI_PROVIDER=claude  # or 'copilot'
+
+# For Claude:
+CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-...  # Generate with: claude setup-token
+
+# For GitHub Copilot:
+GH_TOKEN=ghp_...  # Generate at: https://github.com/settings/tokens
+```
+
+**Optional:**
+```env
+# Whisper transcription
+WHISPER_MODEL=base              # base (default), tiny, small, medium, large
+WHISPER_LANGUAGE=auto           # or specific language code (pt, en, es, etc.)
+
+# Language
+DEFAULT_LANGUAGE=pt-BR          # Interface language: pt-BR (default) or en
+
+# Application
+LOG_LEVEL=info                  # debug, info, warn, error
+MAX_CRASHES=3                   # Circuit breaker threshold
+
+# API mode (for Siri/Apple Watch)
+API_ENABLED=true                # Enable REST API
+API_PORT=3000
+API_KEY=your-secret-key         # Generate with: openssl rand -hex 32
+```
+
+### AI Provider Authentication
+
+#### Claude
+
+1. Install Claude Code CLI:
+   ```bash
+   # macOS
+   brew install claude
+
+   # Or download from: https://docs.anthropic.com/en/docs/claude-code
+   ```
+
+2. Generate OAuth token:
+   ```bash
+   claude setup-token
+   ```
+
+3. Copy the token to `.env`:
+   ```env
+   CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-...
+   AI_PROVIDER=claude
+   ```
+
+#### GitHub Copilot
+
+1. Create a GitHub Personal Access Token with Copilot permissions:
+   - Go to: https://github.com/settings/tokens
+   - Click "Generate new token (classic)"
+   - Select scopes: `copilot`, `read:user`
+   - Generate and copy the token
+
+2. Add to `.env`:
+   ```env
+   GH_TOKEN=ghp_...
+   AI_PROVIDER=copilot
+   ```
+
+### Development Mode
+
+For development with hot reload:
+
+```bash
+docker-compose -f docker-compose.dev.yml up
+```
+
+### Common Commands
+
+```bash
+# Start the bot
+docker-compose up -d
+
+# Stop the bot
+docker-compose down
+
+# Restart (graceful shutdown with automatic cleanup)
+docker-compose restart protoagente
+
+# View logs (follow mode)
+docker-compose logs -f protoagente
+
+# View recent logs
+docker-compose logs --tail 100 protoagente
+
+# Check container health
+docker-compose ps
+docker inspect protoagente --format='{{.State.Health.Status}}'
+
+# Check resource usage
+docker stats protoagente
+
+# Access container shell
+docker-compose exec protoagente sh
+
+# Rebuild after changes
+docker-compose build
+docker-compose up -d
+
+# Clean rebuild (clears cache)
+docker-compose build --no-cache
+```
 
 ---
 
@@ -68,64 +183,34 @@ pm2 save
 | 🔐 **Local-First Security** | No API keys in cloud, works with desktop auth, data stays local | System |
 | ⚙️ **Tool Execution** | Permission bypass mode for autonomous tool calling (Claude) | Both |
 | 🎯 **Session Management** | Per-user sessions with independent context and settings | Both |
+| 🌐 **Internationalization** | Multi-language support (en, pt-BR) with auto-detection and user preferences | Both |
 
 ---
 
 ## 📖 Usage
 
-### Environment Variables
+### Environment Variables Reference
 
-**Required:**
-```env
-TELEGRAM_BOT_TOKEN=your-telegram-bot-token
-ALLOWED_USER_IDS=123456789,987654321  # Comma-separated Telegram user IDs
-```
+See **Environment Configuration** section above for setup instructions.
 
-**Optional:**
-```env
-# AI Provider
-AI_PROVIDER=claude              # 'claude' or 'copilot' (default: claude)
+**All available variables:**
 
-# Whisper Configuration
-WHISPER_MODEL=base             # Whisper model size (default: base)
-WHISPER_LANGUAGE=pt            # Language code or 'auto' (default: auto)
-
-# Application Settings
-LOG_LEVEL=info                 # debug|info|warn|error (default: info)
-MAX_CRASHES=3                  # Circuit breaker threshold (default: 3)
-
-# API REST (for Siri/Apple Watch)
-API_ENABLED=true               # Enable REST API (default: false)
-API_PORT=3000                  # API port (default: 3000)
-API_KEY=your-secret-key        # API authentication key
-
-# Channel Control
-TELEGRAM_ENABLED=true          # Enable Telegram channel (default: true)
-```
-
-### Running with PM2
-
-**Start:**
-```bash
-pm2 start ecosystem.config.cjs
-pm2 save                       # Save for auto-restart on reboot
-```
-
-**Stop:**
-```bash
-pm2 stop Protoagent
-```
-
-**Restart:**
-```bash
-pm2 restart Protoagent
-```
-
-**Monitor:**
-```bash
-pm2 logs Protoagent           # Stream logs
-pm2 monit                      # Real-time monitoring
-```
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TELEGRAM_BOT_TOKEN` | - | **Required:** Telegram bot token from @BotFather |
+| `ALLOWED_USER_IDS` | - | **Required:** Comma-separated Telegram user IDs |
+| `AI_PROVIDER` | `claude` | AI provider: `claude` or `copilot` |
+| `CLAUDE_CODE_OAUTH_TOKEN` | - | **Required for Claude:** OAuth token from `claude setup-token` |
+| `GH_TOKEN` | - | **Required for Copilot:** GitHub Personal Access Token |
+| `WHISPER_MODEL` | `base` | Whisper model: `tiny`, `base`, `small`, `medium`, `large` |
+| `WHISPER_LANGUAGE` | `auto` | Language code (e.g., `pt`, `en`, `es`) or `auto` |
+| `DEFAULT_LANGUAGE` | `pt-BR` | Default language for interface: `pt-BR` or `en` |
+| `LOG_LEVEL` | `info` | Logging level: `debug`, `info`, `warn`, `error` |
+| `MAX_CRASHES` | `3` | Circuit breaker crash threshold |
+| `API_ENABLED` | `false` | Enable REST API server |
+| `API_PORT` | `3000` | REST API port |
+| `API_KEY` | - | REST API authentication key |
+| `TELEGRAM_ENABLED` | `true` | Enable Telegram channel |
 
 ### Providers
 
@@ -137,7 +222,10 @@ Edit `.env`:
 AI_PROVIDER=claude    # or 'copilot'
 ```
 
-Then restart: `pm2 restart Protoagent`
+Then restart:
+```bash
+docker-compose restart protoagente
+```
 
 #### Switching via Channel
 
@@ -163,18 +251,33 @@ curl -X POST http://localhost:3000/api/provider \
 
 #### Provider Setup
 
+See the **AI Provider Authentication** section in Quick Start for detailed setup instructions.
+
+**Quick reference:**
+
 **Claude:**
-1. Install [Claude Desktop](https://claude.ai/download)
-2. Authenticate with your Anthropic account
-3. Run: `bash scripts/setup-claude.sh`
-4. Set `AI_PROVIDER=claude` in `.env`
+```bash
+# Install Claude Code CLI (macOS)
+brew install claude
+
+# Generate OAuth token
+claude setup-token
+
+# Add to .env
+CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-...
+AI_PROVIDER=claude
+```
 
 **GitHub Copilot:**
-1. Install GitHub CLI: `brew install gh` (macOS) or equivalent
-2. Authenticate: `gh auth login`
-3. Install Copilot CLI: `gh copilot install` (follow prompts)
-4. Run: `bash scripts/setup-copilot.sh`
-5. Set `AI_PROVIDER=copilot` in `.env`
+```bash
+# Create Personal Access Token at:
+# https://github.com/settings/tokens
+# Scopes needed: copilot, read:user
+
+# Add to .env
+GH_TOKEN=ghp_...
+AI_PROVIDER=copilot
+```
 
 ### Channels
 
@@ -286,6 +389,26 @@ data: {"type":"chunk","data":{"type":"text","content":"..."}}
 data: {"type":"complete","data":{...}}
 ```
 
+### Language & Internationalization
+
+Protoagent supports **English (en)** and **Portuguese (pt-BR)** for all user-facing messages (~70 translated messages across Telegram, API, and system notifications).
+
+**Automatic Detection (cascade):**
+1. User preference (saved via `/language` command)
+2. Telegram client language (auto-detected from `language_code`)
+3. API `Accept-Language` or `X-Language` headers
+4. `DEFAULT_LANGUAGE` environment variable
+5. Fallback: pt-BR
+
+**Change Language:**
+```
+/language          # Show current language
+/language en       # Switch to English
+/language pt-BR    # Switch to Portuguese
+```
+
+Preferences are saved per user and persist across sessions.
+
 ### Supported Commands
 
 | Command | Telegram | API Endpoint | Description |
@@ -303,6 +426,9 @@ data: {"type":"complete","data":{...}}
 | View params | `/params` | `GET /api/params` | View current parameters |
 | Set param | `/params temp=0.7` | `POST /api/params` | Update a parameter |
 | Save params | `/saveparams` | - | Save current params as defaults |
+| **Language** ||||
+| View language | `/language` | - | Show current interface language |
+| Switch language | `/language en` | - | Switch to English or Portuguese (pt-BR) |
 | **Tasks & Status** ||||
 | View tasks | `/todo` | - | View current TODO list |
 | Add task | `/todo add <task>` | - | Add a new task |
@@ -319,14 +445,22 @@ data: {"type":"complete","data":{...}}
 
 ### Local Development
 
-**Without PM2 (hot reload):**
+**With Docker (recommended):**
 ```bash
-bun run dev          # Watch mode with auto-reload
+# Development mode with hot reload
+docker-compose -f docker-compose.dev.yml up
+
+# Production mode (local test)
+docker-compose up
 ```
 
-**Without PM2 (normal):**
+**Without Docker (direct):**
 ```bash
-bun run start        # Single run
+# Hot reload mode
+bun run dev
+
+# Single run
+bun run start
 ```
 
 **Type checking:**
@@ -334,9 +468,12 @@ bun run start        # Single run
 bunx tsc --noEmit    # TypeScript validation
 ```
 
-**Install dependencies:**
+**Dependencies:**
 ```bash
 bun install          # Install/update packages
+
+# After updating dependencies, rebuild Docker image
+docker-compose build
 ```
 
 ### Project Structure
@@ -345,6 +482,7 @@ bun install          # Install/update packages
 Protoagent/
 ├── src/
 │   ├── index.ts              # Main entry point, boots all channels
+│   ├── healthcheck.ts        # Docker health check script
 │   ├── core/
 │   │   ├── agent-service.ts  # Core agent processing logic
 │   │   └── session-manager.ts # Session management
@@ -357,6 +495,9 @@ Protoagent/
 │   │   ├── index.ts          # Provider registry
 │   │   ├── claude/           # Claude SDK provider
 │   │   └── copilot/          # Copilot CLI provider
+│   ├── i18n/
+│   │   ├── index.ts          # i18next configuration
+│   │   └── locales/          # Translation files (en, pt-BR)
 │   ├── memory.ts             # Memory management (state, short, long)
 │   ├── guardrails.ts         # Turn logging, watchdog, params
 │   ├── resilience.ts         # Crash recovery, circuit breaker
@@ -364,25 +505,44 @@ Protoagent/
 │   └── types.ts              # Shared types
 ├── data/                     # Runtime data (sessions, memory, logs)
 ├── logs/                     # Application logs
-├── scripts/                  # Setup and utility scripts
-└── .bot-runtime/             # Isolated agent SDK runtime
+├── Dockerfile                # Docker image definition
+├── docker-compose.yml        # Production Docker config
+└── docker-compose.dev.yml    # Development Docker config
 ```
 
 ### Debugging
 
 #### Log Files
 
-**Application logs:**
+**Container logs:**
+```bash
+# Stream live logs
+docker-compose logs -f protoagente
+
+# Last 100 lines
+docker-compose logs --tail 100 protoagente
+
+# Follow errors only (requires jq)
+docker-compose logs -f protoagente 2>&1 | grep -i error
+
+# Export logs to file
+docker-compose logs protoagente > debug.log
+```
+
+**Application logs (from host):**
 ```bash
 tail -f logs/error.log        # Error log
 tail -f logs/copilot.log      # Copilot-specific log (if using Copilot)
 ```
 
-**PM2 logs:**
+**Application logs (from container):**
 ```bash
-pm2 logs Protoagent          # Stream all logs
-pm2 logs Protoagent --err    # Error logs only
-pm2 logs Protoagent --lines 100  # Last 100 lines
+# Access container shell
+docker-compose exec protoagente sh
+
+# Then inside container:
+tail -f logs/error.log
+cat data/LOGGED_TURNS.json | jq .
 ```
 
 **Turn logs:**
@@ -416,17 +576,31 @@ cat data/CRASHES.json
 
 # Clear crashes and restart
 rm data/CRASHES.json
-pm2 restart Protoagent
+docker-compose restart protoagente
 ```
 
-**Provider not available:**
+**Provider authentication errors:**
 ```bash
-# Claude
-# Ensure Claude Desktop is running and authenticated
+# Claude - verify token
+grep CLAUDE_CODE_OAUTH_TOKEN .env
 
-# Copilot
-gh auth status                # Check GitHub auth
-gh copilot --version          # Verify Copilot CLI installed
+# Regenerate if needed
+claude setup-token
+
+# Copilot - verify token
+grep GH_TOKEN .env
+
+# Test Copilot access (from container)
+docker-compose exec protoagente sh -c 'echo $GH_TOKEN | head -c 20'
+```
+
+**Whisper not working:**
+```bash
+# Check if model is downloaded
+docker-compose exec protoagente ls -lh /app/node_modules/whisper-node/lib/whisper.cpp/models/
+
+# Rebuild image to download model
+docker-compose build --no-cache
 ```
 
 **Session not persisting:**
@@ -436,7 +610,7 @@ cat data/sessions.json
 
 # Clear and restart
 rm data/sessions.json
-pm2 restart Protoagent
+docker-compose restart protoagente
 ```
 
 **API not responding:**
@@ -444,21 +618,41 @@ pm2 restart Protoagent
 # Check if API is enabled
 grep API_ENABLED .env
 
-# Check if port is in use
-lsof -i :3000
+# Check container is running
+docker-compose ps
+
+# Check container logs
+docker-compose logs protoagente | grep -i "api"
 
 # Test health endpoint
 curl http://localhost:3000/health
 ```
 
+**Container won't start:**
+```bash
+# Check logs for errors
+docker-compose logs protoagente
+
+# Verify .env has required variables
+grep -E "TELEGRAM_BOT_TOKEN|AI_PROVIDER|CLAUDE_CODE_OAUTH_TOKEN|GH_TOKEN" .env
+
+# Rebuild image
+docker-compose build
+docker-compose up -d
+```
+
 #### Debug Mode
 
-Enable verbose logging:
+Enable verbose logging in `.env`:
 ```env
 LOG_LEVEL=debug
 ```
 
-Then restart: `pm2 restart Protoagent`
+Then restart:
+```bash
+docker-compose restart protoagente
+docker-compose logs -f protoagente
+```
 
 ---
 

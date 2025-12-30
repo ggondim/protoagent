@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  protoagente:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # Use production stage (has FFmpeg) but override command for dev
+    container_name: protoagente-dev
+    restart: unless-stopped
+    network_mode: host
+    pid: host
+
+    # Override command for hot reload
+    command: ["bun", "--watch", "src/index.ts"]
+
+    # Environment
+    env_file:
+      - .env
+    environment:
+      - LOG_LEVEL=debug
+      - NODE_ENV=development
+      - SHELL=/bin/sh
+      - USER=protoagente
+
+    # Volume mounts (more permissive for development)
+    volumes:
+      # Source code hot reload
+      - ./src:/app/src
+      - ./package.json:/app/package.json
+
+      # Data and logs
+      - ./data:/app/data
+      - ./logs:/app/logs
+
+      # Auth directories (read-write for debug logs)
+      - ${HOME}/.claude:/home/protoagente/.claude
+      - ${HOME}/.config/github-copilot:/home/protoagente/.config/github-copilot
+
+      # Prevent overwriting built node_modules (especially whisper.cpp)
+      - /app/node_modules
+
+    # Logging (less restrictive for development)
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+    # Network: host mode for Claude Desktop IPC access
+    # Ports are automatically exposed on host network
